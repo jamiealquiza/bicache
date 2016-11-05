@@ -16,7 +16,7 @@ type Sll struct {
 // Object
 type Object struct {
 	Value interface{}
-	HitCount int64
+	Score int64
 	Next *Object
 	Prev *Object
 	// Might add a create for TTL.
@@ -34,7 +34,7 @@ type ObjectScoreList []*Object
 
 // Read
 func (o *Object) Read() interface{} {
-	o.HitCount++
+	o.Score++
 	return o.Value
 }
 
@@ -45,7 +45,7 @@ func (osl ObjectScoreList) Len() int {
 }
 
 func (osl ObjectScoreList) Less(i, j int) bool {
-	return osl[i].HitCount < osl[j].HitCount
+	return osl[i].Score < osl[j].Score
 }
 
 func (osl ObjectScoreList) Swap(i, j int) {
@@ -93,6 +93,10 @@ func (ll *Sll) MoveToHead(o *Object) {
 	// If no head object.
 	if ll.Head == nil {
 		ll.Head = o
+		// Is this a new ll?
+		if ll.Tail == nil {
+			ll.Tail = o
+		}
 		return
 	}
 
@@ -114,6 +118,10 @@ func (ll *Sll) MoveToTail(o *Object) {
 	// If no tail object.
 	if ll.Tail == nil {
 		ll.Tail = o
+		// Is this a new ll?
+		if ll.Head == nil {
+			ll.Head = o
+		}
 		return
 	}
 
@@ -131,7 +139,7 @@ func (ll *Sll) MoveToTail(o *Object) {
 func (ll *Sll) PushHead(v interface{}) {
 	o := &Object{
 		Value: v,
-		HitCount: 1,
+		Score: 1,
 	}
 
 	ll.Scores = append(ll.Scores, o)
@@ -142,7 +150,7 @@ func (ll *Sll) PushHead(v interface{}) {
 func (ll *Sll) PushTail(v interface{}) {
 	o := &Object{
 		Value: v,
-		HitCount: 1,
+		Score: 1,
 	}
 
 	ll.Scores = append(ll.Scores, o)
