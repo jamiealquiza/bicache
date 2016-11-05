@@ -5,50 +5,51 @@ import (
 	"sync"
 )
 
-// Sll
+// Sll is a scored linked list.
 type Sll struct {
 	sync.Mutex
 	Head   *Node
 	Tail   *Node
-	scores NodeScoreList
+	scores nodeScoreList
 }
 
-// Node
+// Node is a scored linked list node.
 type Node struct {
 	Value interface{}
 	Score int64
 	Next  *Node
 	Prev  *Node
-	// Might add a create for TTL.
+	// Might add a create field for TTL.
 }
 
-// New
+// New creates a new *Sll
 func New() *Sll {
 	return &Sll{
-		scores: NodeScoreList{},
+		scores: nodeScoreList{},
 	}
 }
 
-// NodeScoreList
-type NodeScoreList []*Node
+// nodeScoreList holds a slice of *Node
+// for sorting by score.
+type nodeScoreList []*Node
 
-// Read
+// Read returns a *Node Value and increments the score.
 func (o *Node) Read() interface{} {
 	o.Score++
 	return o.Value
 }
 
-// Satisfy sort interface.
+// nodeScoreList methods to satisfy the sort interface.
 
-func (osl NodeScoreList) Len() int {
+func (osl nodeScoreList) Len() int {
 	return len(osl)
 }
 
-func (osl NodeScoreList) Less(i, j int) bool {
+func (osl nodeScoreList) Less(i, j int) bool {
 	return osl[i].Score < osl[j].Score
 }
 
-func (osl NodeScoreList) Swap(i, j int) {
+func (osl nodeScoreList) Swap(i, j int) {
 	osl[i], osl[j] = osl[j], osl[i]
 }
 
@@ -56,7 +57,12 @@ func (ll *Sll) Len() int {
 	return len(ll.scores)
 }
 
-// HighScores
+// HighScores takes an integer and returns the
+// respective number of *Nodes with the higest scores
+// sorted in ascending order. The last element will
+// be the node with the highest score. Calling HighScores
+// locks the *Sll for the duration of a binary sort
+// of roughly O(log len(ll.nodeScoreList)) time.
 func (ll *Sll) HighScores(r int) []*Node {
 	ll.Lock()
 	defer ll.Unlock()
@@ -70,7 +76,12 @@ func (ll *Sll) HighScores(r int) []*Node {
 	return ll.scores[len(ll.scores)-r:]
 }
 
-// LowScores
+// LowScores takes an integer and returns the
+// respective number of *Nodes with the lowest scores
+// sorted in ascending order. The first element will
+// be the node with the lowest score. Calling LowScores
+// locks the *Sll for the duration of a binary sort
+// of roughly O(log len(ll.nodeScoreList)) time.
 func (ll *Sll) LowScores(r int) []*Node {
 	ll.Lock()
 	defer ll.Unlock()
@@ -84,7 +95,8 @@ func (ll *Sll) LowScores(r int) []*Node {
 	return ll.scores[:r]
 }
 
-// MoveToHead
+// MoveToHead takes a *Node and moves it
+// to the front of the *Sll.
 func (ll *Sll) MoveToHead(o *Node) {
 	ll.Lock()
 	defer ll.Unlock()
@@ -105,7 +117,8 @@ func (ll *Sll) MoveToHead(o *Node) {
 	ll.Head.Next = nil
 }
 
-// MoveToTail
+// MoveToTail takes a *Node and moves it
+// to the back of the *Sll.
 func (ll *Sll) MoveToTail(o *Node) {
 	ll.Lock()
 	defer ll.Unlock()
@@ -126,7 +139,8 @@ func (ll *Sll) MoveToTail(o *Node) {
 	ll.Tail.Prev = nil
 }
 
-// PushHead
+// PushHead creates a *Node with value v
+// at the head of the *Sll.
 func (ll *Sll) PushHead(v interface{}) {
 	o := &Node{
 		Value: v,
@@ -152,7 +166,8 @@ func (ll *Sll) PushHead(v interface{}) {
 	ll.Head.Next = nil
 }
 
-// PushTail
+// PushTail creates a *Node with value v
+// at the tail of the *Sll.
 func (ll *Sll) PushTail(v interface{}) {
 	o := &Node{
 		Value: v,
@@ -178,7 +193,7 @@ func (ll *Sll) PushTail(v interface{}) {
 	ll.Tail.Prev = nil
 }
 
-// Remove
+// Remove removes a *Node from the *Sll.
 func (ll *Sll) Remove(o *Node) {
 	ll.Lock()
 	defer ll.Unlock()
@@ -191,7 +206,7 @@ func (ll *Sll) Remove(o *Node) {
 	o.Next, o.Prev = nil, nil
 }
 
-// RemoveHead
+// RemoveHead removes the current *Sll.Head.
 func (ll *Sll) RemoveHead() {
 	ll.Lock()
 	defer ll.Unlock()
@@ -208,7 +223,7 @@ func (ll *Sll) RemoveHead() {
 	ll.Head.Next = nil
 }
 
-// RemoveTail
+// RemoveTail removes the current *Sll.Tail.
 func (ll *Sll) RemoveTail() {
 	ll.Lock()
 	defer ll.Unlock()
