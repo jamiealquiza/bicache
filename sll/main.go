@@ -1,14 +1,15 @@
 package sll
 
 import (
-	"sync/mutex"
+	"sort"
+	"sync"
 )
 
+// Sll
 type Sll struct {
 	sync.Mutex
 	Head *Object
 	Tail *Object
-	Len int
 	Scores ObjectScoreList
 }
 
@@ -23,12 +24,21 @@ type Object struct {
 
 // New
 func New() *Sll {
-	return &Sll{}
+	return &Sll{
+		Scores: ObjectScoreList{},
+	}
+}
+
+// ObjectScoreList
+type ObjectScoreList []*Object
+
+// Read
+func (o *Object) Read() interface{} {
+	o.HitCount++
+	return o.Value
 }
 
 // Satisfy sort interface.
-
-type ObjectScoreList []*Object
 
 func (osl ObjectScoreList) Len() int {
 	return len(osl)
@@ -42,23 +52,43 @@ func (osl ObjectScoreList) Swap(i, j int) {
 	osl[i], osl[j] = osl[j], osl[i]
 }
 
-func (ll *Sll) HighScore() *Object {
 
+func (ll *Sll) Len() int {
+	return len(ll.Scores)
 }
 
-func (ll *Sll) LowScore() *Object {
+// HighScores
+func (ll *Sll) HighScores(r int) []*Object {
+	ll.Lock()
+	defer ll.Unlock()
 	
+	sort.Sort(ll.Scores)
+
+	if r > ll.Len() {
+		return ll.Scores
+	}
+
+	return ll.Scores[len(ll.Scores)-r:]
 }
 
-// PushHead
-func (ll *Sll) PushHead(v interface{}) {
+// LowScores
+func (ll *Sll) LowScores(r int) []*Object {
 	ll.Lock()
 	defer ll.Unlock()
 
-	o := &Object{
-		Value: v,
-		HitCount: 1,
+	sort.Sort(ll.Scores)
+
+	if r > len(ll.Scores) {
+		return ll.Scores
 	}
+
+	return ll.Scores[:r]
+}
+
+// MoveToHead
+func (ll *Sll) MoveToHead(o *Object) {
+	ll.Lock()
+	defer ll.Unlock()
 
 	// If no head object.
 	if ll.Head == nil {
@@ -74,21 +104,12 @@ func (ll *Sll) PushHead(v interface{}) {
 	ll.Head = o
 	// Ensure head.Next is nil.
 	ll.Head.Next = nil
-
-	// insort here.
-
-	ll.Len = len(ll.Scores)
 }
 
-// PushTail
-func (ll *Sll) PushTail(v interface{}) {
+// MoveToTail
+func (ll *Sll) MoveToTail(o *Object) {
 	ll.Lock()
 	defer ll.Unlock()
-
-	o := &Object{
-		Value: v,
-		HitCount: 1,
-	}
 
 	// If no tail object.
 	if ll.Tail == nil {
@@ -106,6 +127,28 @@ func (ll *Sll) PushTail(v interface{}) {
 	ll.Tail.Prev = nil
 }
 
+// PushHead
+func (ll *Sll) PushHead(v interface{}) {
+	o := &Object{
+		Value: v,
+		HitCount: 1,
+	}
+
+	ll.Scores = append(ll.Scores, o)
+	ll.MoveToHead(o)
+}
+
+// PushTail
+func (ll *Sll) PushTail(v interface{}) {
+	o := &Object{
+		Value: v,
+		HitCount: 1,
+	}
+
+	ll.Scores = append(ll.Scores, o)
+	ll.MoveToTail(o)
+}
+
 // Remove
 func (ll *Sll) Remove(o *Object) {
 	ll.Lock()
@@ -116,7 +159,7 @@ func (ll *Sll) Remove(o *Object) {
 	o.Prev.Next = o.Next
 
 	// Remove references.
-	o.Next, o.Prev = nil
+	o.Next, o.Prev = nil, nil
 }
 
 // RemoveHead
