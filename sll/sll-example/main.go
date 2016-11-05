@@ -83,5 +83,45 @@ func main() {
 		}
 	}
 
+	fmt.Printf("\n\n[ remove head, tail ]\n")
+	fmt.Printf("Current: ")
+	node = s.Tail
+	for {
+		fmt.Printf("%s -> ", node.Read())
+		if node.Next != nil {
+			node = node.Next
+		} else {
+			break
+		}
+	}
+
+	s.RemoveHead()
+	s.RemoveTail()
+
+	fmt.Printf("\nNew: ")
+	node = s.Tail
+	for {
+		fmt.Printf("%s -> ", node.Read())
+		if node.Next != nil {
+			node = node.Next
+		} else {
+			break
+		}
+	}
+
+	fmt.Printf("\n\n[ remove middle node ]\n")
+	node = s.Tail.Next
+	s.Remove(node)
+
+	node = s.Tail
+	for {
+		fmt.Printf("%s -> ", node.Read())
+		if node.Next != nil {
+			node = node.Next
+		} else {
+			break
+		}
+	}
+
 	fmt.Println()
 }
