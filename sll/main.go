@@ -143,6 +143,9 @@ func (ll *Sll) MoveToTail(o *Node) {
 // PushHead creates a *Node with value v
 // at the head of the *Sll.
 func (ll *Sll) PushHead(v interface{}) {
+	ll.Lock()
+	defer ll.Unlock()
+
 	o := &Node{
 		Value: v,
 		Score: 0,
@@ -170,6 +173,9 @@ func (ll *Sll) PushHead(v interface{}) {
 // PushTail creates a *Node with value v
 // at the tail of the *Sll.
 func (ll *Sll) PushTail(v interface{}) {
+	ll.Lock()
+	defer ll.Unlock()
+	
 	o := &Node{
 		Value: v,
 		Score: 0,
