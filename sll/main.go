@@ -8,84 +8,84 @@ import (
 // Sll
 type Sll struct {
 	sync.Mutex
-	Head   *Object
-	Tail   *Object
-	Scores ObjectScoreList
+	Head   *Node
+	Tail   *Node
+	scores NodeScoreList
 }
 
-// Object
-type Object struct {
+// Node
+type Node struct {
 	Value interface{}
 	Score int64
-	Next  *Object
-	Prev  *Object
+	Next  *Node
+	Prev  *Node
 	// Might add a create for TTL.
 }
 
 // New
 func New() *Sll {
 	return &Sll{
-		Scores: ObjectScoreList{},
+		scores: NodeScoreList{},
 	}
 }
 
-// ObjectScoreList
-type ObjectScoreList []*Object
+// NodeScoreList
+type NodeScoreList []*Node
 
 // Read
-func (o *Object) Read() interface{} {
+func (o *Node) Read() interface{} {
 	o.Score++
 	return o.Value
 }
 
 // Satisfy sort interface.
 
-func (osl ObjectScoreList) Len() int {
+func (osl NodeScoreList) Len() int {
 	return len(osl)
 }
 
-func (osl ObjectScoreList) Less(i, j int) bool {
+func (osl NodeScoreList) Less(i, j int) bool {
 	return osl[i].Score < osl[j].Score
 }
 
-func (osl ObjectScoreList) Swap(i, j int) {
+func (osl NodeScoreList) Swap(i, j int) {
 	osl[i], osl[j] = osl[j], osl[i]
 }
 
 func (ll *Sll) Len() int {
-	return len(ll.Scores)
+	return len(ll.scores)
 }
 
 // HighScores
-func (ll *Sll) HighScores(r int) []*Object {
+func (ll *Sll) HighScores(r int) []*Node {
 	ll.Lock()
 	defer ll.Unlock()
 
-	sort.Sort(ll.Scores)
+	sort.Sort(ll.scores)
 
 	if r > ll.Len() {
-		return ll.Scores
+		return ll.scores
 	}
 
-	return ll.Scores[len(ll.Scores)-r:]
+	return ll.scores[len(ll.scores)-r:]
 }
 
 // LowScores
-func (ll *Sll) LowScores(r int) []*Object {
+func (ll *Sll) LowScores(r int) []*Node {
 	ll.Lock()
 	defer ll.Unlock()
 
-	sort.Sort(ll.Scores)
+	sort.Sort(ll.scores)
 
-	if r > len(ll.Scores) {
-		return ll.Scores
+	if r > len(ll.scores) {
+		return ll.scores
 	}
 
-	return ll.Scores[:r]
+	return ll.scores[:r]
 }
 
 // MoveToHead
-func (ll *Sll) MoveToHead(o *Object) {
+func (ll *Sll) MoveToHead(o *Node) {
 	ll.Lock()
 	defer ll.Unlock()
 
@@ -106,7 +106,7 @@ func (ll *Sll) MoveToHead(o *Object) {
 }
 
 // MoveToTail
-func (ll *Sll) MoveToTail(o *Object) {
+func (ll *Sll) MoveToTail(o *Node) {
 	ll.Lock()
 	defer ll.Unlock()
 
@@ -128,12 +128,12 @@ func (ll *Sll) MoveToTail(o *Object) {
 
 // PushHead
 func (ll *Sll) PushHead(v interface{}) {
-	o := &Object{
+	o := &Node{
 		Value: v,
 		Score: 0,
 	}
 
-	ll.Scores = append(ll.Scores, o)
+	ll.scores = append(ll.scores, o)
 
 	// Is this a new ll?
 	if ll.Head == nil {
@@ -154,12 +154,12 @@ func (ll *Sll) PushHead(v interface{}) {
 
 // PushTail
 func (ll *Sll) PushTail(v interface{}) {
-	o := &Object{
+	o := &Node{
 		Value: v,
 		Score: 0,
 	}
 
-	ll.Scores = append(ll.Scores, o)
+	ll.scores = append(ll.scores, o)
 
 	// Is this a new ll?
 	if ll.Tail == nil {
@@ -179,7 +179,7 @@ func (ll *Sll) PushTail(v interface{}) {
 }
 
 // Remove
-func (ll *Sll) Remove(o *Object) {
+func (ll *Sll) Remove(o *Node) {
 	ll.Lock()
 	defer ll.Unlock()
 
