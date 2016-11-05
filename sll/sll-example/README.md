@@ -25,4 +25,11 @@ Value:five Score:5
 [ move tail to head ]
 Current: five -> four -> three -> two -> one ->
 New: four -> three -> two -> one -> five ->
+
+[ remove head, tail ]
+Current: four -> three -> two -> one -> five ->
+New: three -> two -> one ->
+
+[ remove middle node ]
+three -> one ->
 ```
