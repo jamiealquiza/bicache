@@ -53,6 +53,7 @@ func (nsl nodeScoreList) Swap(i, j int) {
 	nsl[i], nsl[j] = nsl[j], nsl[i]
 }
 
+// Len returns the count of nodes in the *Sll.
 func (ll *Sll) Len() int {
 	return len(ll.scores)
 }
