@@ -15,46 +15,73 @@ func main() {
 		"three",
 		"four",
 		"five",
-	} 
+	}
 
-	fmt.Println("\n[ PushTail objects ]\n")
+	fmt.Println("[ PushTail objects ]")
 	for _, o := range objects {
 		fmt.Println(o)
 		s.PushTail(o)
 	}
 
-	fmt.Printf("\n\n[ traverse from tail ]\n")
-	next := s.Tail
+	fmt.Printf("\n[ traverse from tail ]\n")
+	node := s.Tail
 	for {
-		fmt.Println(next.Read())
-		if next.Next != nil {
-			next = next.Next
+		fmt.Printf("%s -> ", node.Read())
+		if node.Next != nil {
+			node = node.Next
 		} else {
 			break
 		}
 	}
 
 	fmt.Printf("\n\n[ traverse from head ]\n")
-	next = s.Head
+	node = s.Head
 	for {
-		fmt.Println(next.Read())
-		if next.Prev != nil {
-			next = next.Prev
+		fmt.Printf("%s -> ", node.Read())
+		if node.Prev != nil {
+			node = node.Prev
 		} else {
 			break
 		}
 	}
 
-	fmt.Printf("\n\n[ read tail ]\n")
+	fmt.Printf("\n\n[ read tail 3x ]\n")
 	tail := s.Tail
 	fmt.Println(tail.Read())
 	fmt.Println(tail.Read())
 	fmt.Println(tail.Read())
 
-	fmt.Printf("\n\n[ read top 2 scores ]\n")
+	fmt.Printf("\n[ read top 2 scores ]\n")
 	top2 := s.HighScores(2)
 	for _, o := range top2 {
 		fmt.Printf("Value:%s Score:%d\n",
 			o.Value, o.Score)
 	}
+
+	fmt.Printf("\n[ move tail to head ]\n")
+	fmt.Printf("Current: ")
+	node = s.Tail
+	for {
+		fmt.Printf("%s -> ", node.Read())
+		if node.Next != nil {
+			node = node.Next
+		} else {
+			break
+		}
+	}
+
+	s.MoveToHead(s.Tail)
+
+	fmt.Printf("\nNew: ")
+	node = s.Tail
+	for {
+		fmt.Printf("%s -> ", node.Read())
+		if node.Next != nil {
+			node = node.Next
+		} else {
+			break
+		}
+	}
+
+	fmt.Println()
 }

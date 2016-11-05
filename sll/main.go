@@ -8,8 +8,8 @@ import (
 // Sll
 type Sll struct {
 	sync.Mutex
-	Head *Object
-	Tail *Object
+	Head   *Object
+	Tail   *Object
 	Scores ObjectScoreList
 }
 
@@ -17,8 +17,8 @@ type Sll struct {
 type Object struct {
 	Value interface{}
 	Score int64
-	Next *Object
-	Prev *Object
+	Next  *Object
+	Prev  *Object
 	// Might add a create for TTL.
 }
 
@@ -52,7 +52,6 @@ func (osl ObjectScoreList) Swap(i, j int) {
 	osl[i], osl[j] = osl[j], osl[i]
 }
 
-
 func (ll *Sll) Len() int {
 	return len(ll.Scores)
 }
@@ -61,7 +60,7 @@ func (ll *Sll) Len() int {
 func (ll *Sll) HighScores(r int) []*Object {
 	ll.Lock()
 	defer ll.Unlock()
-	
+
 	sort.Sort(ll.Scores)
 
 	if r > ll.Len() {
@@ -90,14 +89,10 @@ func (ll *Sll) MoveToHead(o *Object) {
 	ll.Lock()
 	defer ll.Unlock()
 
-	// If no head object.
-	if ll.Head == nil {
-		ll.Head = o
-		// Is this a new ll?
-		if ll.Tail == nil {
-			ll.Tail = o
-		}
-		return
+	// If this is the tail, update
+	// assign a new tail.
+	if o.Prev == nil {
+		ll.Tail = o.Next
 	}
 
 	// Set current head next to o.
@@ -115,14 +110,10 @@ func (ll *Sll) MoveToTail(o *Object) {
 	ll.Lock()
 	defer ll.Unlock()
 
-	// If no tail object.
-	if ll.Tail == nil {
-		ll.Tail = o
-		// Is this a new ll?
-		if ll.Head == nil {
-			ll.Head = o
-		}
-		return
+	// If this is the head, update
+	// assign a new head.
+	if o.Next == nil {
+		ll.Head = o.Prev
 	}
 
 	// Set current tail prev to o.
@@ -139,22 +130,52 @@ func (ll *Sll) MoveToTail(o *Object) {
 func (ll *Sll) PushHead(v interface{}) {
 	o := &Object{
 		Value: v,
-		Score: 1,
+		Score: 0,
 	}
 
 	ll.Scores = append(ll.Scores, o)
-	ll.MoveToHead(o)
+
+	// Is this a new ll?
+	if ll.Head == nil {
+		ll.Head = o
+		ll.Tail = o
+		return
+	}
+
+	// Set current head next to o.
+	ll.Head.Next = o
+	// Set o prev to current head.
+	o.Prev = ll.Head
+	// Swap o to head.
+	ll.Head = o
+	// Ensure head.Next is nil.
+	ll.Head.Next = nil
 }
 
 // PushTail
 func (ll *Sll) PushTail(v interface{}) {
 	o := &Object{
 		Value: v,
-		Score: 1,
+		Score: 0,
 	}
 
 	ll.Scores = append(ll.Scores, o)
-	ll.MoveToTail(o)
+
+	// Is this a new ll?
+	if ll.Tail == nil {
+		ll.Head = o
+		ll.Tail = o
+		return
+	}
+
+	// Set current tail prev to o.
+	ll.Tail.Prev = o
+	// Set o next to current tail.
+	o.Next = ll.Tail
+	// Swap o to tail.
+	ll.Tail = o
+	// Ensure tail.Prev is nil.
+	ll.Tail.Prev = nil
 }
 
 // Remove
