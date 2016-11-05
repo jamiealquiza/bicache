@@ -41,16 +41,16 @@ func (o *Node) Read() interface{} {
 
 // nodeScoreList methods to satisfy the sort interface.
 
-func (osl nodeScoreList) Len() int {
-	return len(osl)
+func (nsl nodeScoreList) Len() int {
+	return len(nsl)
 }
 
-func (osl nodeScoreList) Less(i, j int) bool {
-	return osl[i].Score < osl[j].Score
+func (nsl nodeScoreList) Less(i, j int) bool {
+	return nsl[i].Score < nsl[j].Score
 }
 
-func (osl nodeScoreList) Swap(i, j int) {
-	osl[i], osl[j] = osl[j], osl[i]
+func (nsl nodeScoreList) Swap(i, j int) {
+	nsl[i], nsl[j] = nsl[j], nsl[i]
 }
 
 func (ll *Sll) Len() int {
