@@ -151,8 +151,8 @@ func (ll *Sll) MoveToTail(n *Node) {
 }
 
 // PushHead creates a *Node with value v
-// at the head of the *Sll.
-func (ll *Sll) PushHead(v interface{}) {
+// at the head of the *Sll and returns a *Node.
+func (ll *Sll) PushHead(v interface{}) *Node {
 	ll.Lock()
 	defer ll.Unlock()
 
@@ -167,7 +167,7 @@ func (ll *Sll) PushHead(v interface{}) {
 	if ll.head == nil {
 		ll.head = n
 		ll.tail = n
-		return
+		return n
 	}
 
 	// Set current head next to n.
@@ -178,11 +178,13 @@ func (ll *Sll) PushHead(v interface{}) {
 	ll.head = n
 	// Ensure head.Next is nil.
 	ll.head.Next = nil
+
+	return n
 }
 
 // PushTail creates a *Node with value v
-// at the tail of the *Sll.
-func (ll *Sll) PushTail(v interface{}) {
+// at the tail of the *Sll and returns a *Node.
+func (ll *Sll) PushTail(v interface{}) *Node {
 	ll.Lock()
 	defer ll.Unlock()
 
@@ -197,7 +199,7 @@ func (ll *Sll) PushTail(v interface{}) {
 	if ll.tail == nil {
 		ll.head = n
 		ll.tail = n
-		return
+		return n
 	}
 
 	// Set current tail prev to n.
@@ -208,6 +210,8 @@ func (ll *Sll) PushTail(v interface{}) {
 	ll.tail = n
 	// Ensure tail.Prev is nil.
 	ll.tail.Prev = nil
+
+	return n
 }
 
 // Remove removes a *Node from the *Sll.

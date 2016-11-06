@@ -20,7 +20,7 @@ func main() {
 	fmt.Println("[ PushTail objects ]")
 	for _, o := range objects {
 		fmt.Println(o)
-		s.PushTail(o)
+		_ = s.PushTail(o)
 	}
 
 	fmt.Printf("\n[ traverse from tail ]\n")
