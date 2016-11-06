@@ -9,8 +9,8 @@ import (
 // Bicache
 type Bicache struct {
 	sync.Mutex
-	mfuCache map[Object]string // Val may be a ts for ttl/gc.
-	mruCache map[Object]string
+	mfuCache map[string]*Sll.Node
+	mruCache map[string]*Sll.Node
 	mfuCap int
 	mruCap int
 	safe bool

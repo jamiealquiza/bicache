@@ -24,7 +24,7 @@ func main() {
 	}
 
 	fmt.Printf("\n[ traverse from tail ]\n")
-	node := s.Tail
+	node := s.Tail()
 	for {
 		fmt.Printf("%s -> ", node.Read())
 		if node.Next != nil {
@@ -35,7 +35,7 @@ func main() {
 	}
 
 	fmt.Printf("\n\n[ traverse from head ]\n")
-	node = s.Head
+	node = s.Head()
 	for {
 		fmt.Printf("%s -> ", node.Read())
 		if node.Prev != nil {
@@ -46,7 +46,7 @@ func main() {
 	}
 
 	fmt.Printf("\n\n[ read tail 3x ]\n")
-	tail := s.Tail
+	tail := s.Tail()
 	fmt.Println(tail.Read())
 	fmt.Println(tail.Read())
 	fmt.Println(tail.Read())
@@ -60,7 +60,7 @@ func main() {
 
 	fmt.Printf("\n[ move tail to head ]\n")
 	fmt.Printf("Current: ")
-	node = s.Tail
+	node = s.Tail()
 	for {
 		fmt.Printf("%s -> ", node.Read())
 		if node.Next != nil {
@@ -70,10 +70,10 @@ func main() {
 		}
 	}
 
-	s.MoveToHead(s.Tail)
+	s.MoveToHead(s.Tail())
 
 	fmt.Printf("\nNew: ")
-	node = s.Tail
+	node = s.Tail()
 	for {
 		fmt.Printf("%s -> ", node.Read())
 		if node.Next != nil {
@@ -85,7 +85,7 @@ func main() {
 
 	fmt.Printf("\n\n[ remove head, tail ]\n")
 	fmt.Printf("Current: ")
-	node = s.Tail
+	node = s.Tail()
 	for {
 		fmt.Printf("%s -> ", node.Read())
 		if node.Next != nil {
@@ -99,7 +99,7 @@ func main() {
 	s.RemoveTail()
 
 	fmt.Printf("\nNew: ")
-	node = s.Tail
+	node = s.Tail()
 	for {
 		fmt.Printf("%s -> ", node.Read())
 		if node.Next != nil {
@@ -110,10 +110,10 @@ func main() {
 	}
 
 	fmt.Printf("\n\n[ remove middle node ]\n")
-	node = s.Tail.Next
+	node = s.Tail().Next
 	s.Remove(node)
 
-	node = s.Tail
+	node = s.Tail()
 	for {
 		fmt.Printf("%s -> ", node.Read())
 		if node.Next != nil {

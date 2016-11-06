@@ -8,8 +8,8 @@ import (
 // Sll is a scored linked list.
 type Sll struct {
 	sync.Mutex
-	Head   *Node
-	Tail   *Node
+	head   *Node
+	tail   *Node
 	scores nodeScoreList
 }
 
@@ -56,6 +56,16 @@ func (nsl nodeScoreList) Swap(i, j int) {
 // Len returns the count of nodes in the *Sll.
 func (ll *Sll) Len() int {
 	return len(ll.scores)
+}
+
+// Head returns the head *Node.
+func (ll *Sll) Head() *Node {
+	return ll.head
+}
+
+// Tail returns the head *Node.
+func (ll *Sll) Tail() *Node {
+	return ll.tail
 }
 
 // HighScores takes an integer and returns the
@@ -105,17 +115,17 @@ func (ll *Sll) MoveToHead(o *Node) {
 	// If this is the tail, update
 	// assign a new tail.
 	if o.Prev == nil {
-		ll.Tail = o.Next
+		ll.tail = o.Next
 	}
 
 	// Set current head next to o.
-	ll.Head.Next = o
+	ll.head.Next = o
 	// Set o prev to current head.
-	o.Prev = ll.Head
+	o.Prev = ll.head
 	// Swap o to head.
-	ll.Head = o
+	ll.head = o
 	// Ensure head.Next is nil.
-	ll.Head.Next = nil
+	ll.head.Next = nil
 }
 
 // MoveToTail takes a *Node and moves it
@@ -127,17 +137,17 @@ func (ll *Sll) MoveToTail(o *Node) {
 	// If this is the head, update
 	// assign a new head.
 	if o.Next == nil {
-		ll.Head = o.Prev
+		ll.head = o.Prev
 	}
 
 	// Set current tail prev to o.
-	ll.Tail.Prev = o
+	ll.tail.Prev = o
 	// Set o next to current tail.
-	o.Next = ll.Tail
+	o.Next = ll.tail
 	// Swap o to tail.
-	ll.Tail = o
+	ll.tail = o
 	// Ensure tail.Prev is nil.
-	ll.Tail.Prev = nil
+	ll.tail.Prev = nil
 }
 
 // PushHead creates a *Node with value v
@@ -154,20 +164,20 @@ func (ll *Sll) PushHead(v interface{}) {
 	ll.scores = append(ll.scores, o)
 
 	// Is this a new ll?
-	if ll.Head == nil {
-		ll.Head = o
-		ll.Tail = o
+	if ll.head == nil {
+		ll.head = o
+		ll.tail = o
 		return
 	}
 
 	// Set current head next to o.
-	ll.Head.Next = o
+	ll.head.Next = o
 	// Set o prev to current head.
-	o.Prev = ll.Head
+	o.Prev = ll.head
 	// Swap o to head.
-	ll.Head = o
+	ll.head = o
 	// Ensure head.Next is nil.
-	ll.Head.Next = nil
+	ll.head.Next = nil
 }
 
 // PushTail creates a *Node with value v
@@ -184,20 +194,20 @@ func (ll *Sll) PushTail(v interface{}) {
 	ll.scores = append(ll.scores, o)
 
 	// Is this a new ll?
-	if ll.Tail == nil {
-		ll.Head = o
-		ll.Tail = o
+	if ll.tail == nil {
+		ll.head = o
+		ll.tail = o
 		return
 	}
 
 	// Set current tail prev to o.
-	ll.Tail.Prev = o
+	ll.tail.Prev = o
 	// Set o next to current tail.
-	o.Next = ll.Tail
+	o.Next = ll.tail
 	// Swap o to tail.
-	ll.Tail = o
+	ll.tail = o
 	// Ensure tail.Prev is nil.
-	ll.Tail.Prev = nil
+	ll.tail.Prev = nil
 }
 
 // Remove removes a *Node from the *Sll.
@@ -213,36 +223,36 @@ func (ll *Sll) Remove(o *Node) {
 	o.Next, o.Prev = nil, nil
 }
 
-// RemoveHead removes the current *Sll.Head.
+// RemoveHead removes the current *Sll.head.
 func (ll *Sll) RemoveHead() {
 	ll.Lock()
 	defer ll.Unlock()
 
-	if ll.Head == nil {
+	if ll.head == nil {
 		return
 	}
 
 	// Set head to current head.Prev.
-	ll.Head = ll.Head.Prev
+	ll.head = ll.head.Prev
 	// Unlink old head's refs.
-	ll.Head.Next.Prev = nil
+	ll.head.Next.Prev = nil
 	// Set new head.Next to nil.
-	ll.Head.Next = nil
+	ll.head.Next = nil
 }
 
-// RemoveTail removes the current *Sll.Tail.
+// RemoveTail removes the current *Sll.tail.
 func (ll *Sll) RemoveTail() {
 	ll.Lock()
 	defer ll.Unlock()
 
-	if ll.Tail == nil {
+	if ll.tail == nil {
 		return
 	}
 
 	// Set tail to current tail.Next
-	ll.Tail = ll.Tail.Next
+	ll.tail = ll.tail.Next
 	// Unlink old tail's refs.
-	ll.Tail.Prev.Next = nil
+	ll.tail.Prev.Next = nil
 	// Set new tail.Prev to nil.
-	ll.Tail.Prev = nil
+	ll.tail.Prev = nil
 }
