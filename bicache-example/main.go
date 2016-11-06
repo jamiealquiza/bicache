@@ -7,10 +7,10 @@ import (
 )
 
 func main() {
-	c := bichache.New(&bicache.Config{
+	c := bicache.New(&bicache.Config{
 		MfuSize: 10,
 		MruSize: 100,
-		Safe: true
+		Safe:    true,
 	})
 
 	c.Set("key", "val")
