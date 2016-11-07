@@ -1,8 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"encoding/json"
+	"fmt"
 
 	"github.com/jamiealquiza/bicache"
 )
@@ -10,16 +10,22 @@ import (
 func main() {
 	c := bicache.New(&bicache.Config{
 		MfuSize: 10,
-		MruSize: 100,
+		MruSize: 3,
 	})
 
-	c.Set("key", "val")
-	fmt.Println(c.Get("key"))
+	c.Set("one", "one")
+	c.Set("two", "two")
+	c.Set("three", "three")
+	c.Set("four", "four")
+	c.Set("five", "five")
+	c.Set("six", "six")
+
+	fmt.Println(c.Get("one"))
 
 	stats := c.Stats()
 	j, _ := json.Marshal(stats)
 	fmt.Println(string(j))
 
-	c.Delete("key")
-	fmt.Println(c.Get("key"))
+	c.Delete("one")
+	fmt.Println(c.Get("one"))
 }

@@ -88,7 +88,9 @@ func (ll *Sll) HighScores(r int) []*Node {
 	defer ll.Unlock()
 
 	sort.Sort(ll.scores)
-
+	// Return what's available
+	// if more is being requested
+	// than exists.
 	if r > len(ll.scores) {
 		return ll.scores
 	}
@@ -107,7 +109,9 @@ func (ll *Sll) LowScores(r int) []*Node {
 	defer ll.Unlock()
 
 	sort.Sort(ll.scores)
-
+	// Return what's available
+	// if more is being requested
+	// than exists.
 	if r > len(ll.scores) {
 		return ll.scores
 	}
@@ -121,22 +125,26 @@ func (ll *Sll) MoveToHead(n *Node) {
 	ll.Lock()
 	defer ll.Unlock()
 
-	// If this is the tail, update
+	// Short-circuit.
+	if ll.head == n {
+		return
+	}
+
+	// If this is the tail,
 	// assign a new tail.
-	if n.Prev == nil {
+	if ll.tail == n {
 		ll.tail = n.Next
 	}
 
-	// Set current head next to n.
-	if ll.head != nil {
-		ll.head.Next = n
-	}
+	// Set current head Next to n.
+	ll.head.Next = n
 	// Set n prev to current head.
 	n.Prev = ll.head
-	// Swap n to head.
+
+	// Ensure n Next is nil.
+	n.Next = nil
+	// Set n to head.
 	ll.head = n
-	// Ensure head.Next is nil.
-	ll.head.Next = nil
 }
 
 // MoveToTail takes a *Node and moves it
@@ -145,22 +153,26 @@ func (ll *Sll) MoveToTail(n *Node) {
 	ll.Lock()
 	defer ll.Unlock()
 
-	// If this is the head, update
+	// Short-circuit.
+	if ll.tail == n {
+		return
+	}
+
+	// If this is the head,
 	// assign a new head.
-	if n.Next == nil {
+	if ll.head == n {
 		ll.head = n.Prev
 	}
 
-	// Set current tail prev to n.
-	if ll.tail != nil {
-		ll.tail.Prev = n
-	}
+	// Set current tail Prev to n.
+	ll.tail.Prev = n
 	// Set n next to current tail.
 	n.Next = ll.tail
-	// Swap n to tail.
+
+	// Ensure n Prev is nil.
+	n.Prev = nil
+	// Set n to tail.
 	ll.tail = n
-	// Ensure tail.Prev is nil.
-	ll.tail.Prev = nil
 }
 
 // PushHead creates a *Node with value v
@@ -189,8 +201,6 @@ func (ll *Sll) PushHead(v interface{}) *Node {
 	n.Prev = ll.head
 	// Swap n to head.
 	ll.head = n
-	// Ensure head.Next is nil.
-	ll.head.Next = nil
 
 	return n
 }
@@ -221,8 +231,6 @@ func (ll *Sll) PushTail(v interface{}) *Node {
 	n.Next = ll.tail
 	// Swap n to tail.
 	ll.tail = n
-	// Ensure tail.Prev is nil.
-	ll.tail.Prev = nil
 
 	return n
 }
@@ -277,12 +285,14 @@ func (ll *Sll) RemoveHead() {
 		return
 	}
 
+	oldHead := ll.head
+
 	// Set head to current head.Prev.
-	ll.head = ll.head.Prev
-	// Unlink old head's refs.
-	ll.head.Next.Prev = nil
-	// Set new head.Next to nil.
+	ll.head = oldHead.Prev
+	// Set new head Next to nil.
 	ll.head.Next = nil
+	// Remove old head references.
+	oldHead.Next, oldHead.Prev = nil, nil
 }
 
 // RemoveTail removes the current *Sll.tail.
@@ -294,10 +304,62 @@ func (ll *Sll) RemoveTail() {
 		return
 	}
 
-	// Set tail to current tail.Next
-	ll.tail = ll.tail.Next
-	// Unlink old tail's refs.
-	ll.tail.Prev.Next = nil
-	// Set new tail.Prev to nil.
+	oldTail := ll.tail
+
+	// Set tail to current tail.Next.
+	ll.tail = oldTail.Next
+	// Set new tail Prev to nil.
 	ll.tail.Prev = nil
+	// Remove old head references.
+	oldTail.Next, oldTail.Prev = nil, nil
+}
+
+// Special methods.
+
+// PushHeadNode takes an existing *Node and
+// sets it as the head of the *Sll. The *Node
+// is also added to the score list.
+func (ll *Sll) PushHeadNode(n *Node) {
+	ll.Lock()
+	defer ll.Unlock()
+
+	ll.scores = append(ll.scores, n)
+
+	// Is this a new ll?
+	if ll.head == nil {
+		ll.head = n
+		ll.tail = n
+		return
+	}
+
+	// Set current head next to n.
+	ll.head.Next = n
+	// Set n prev to current head.
+	n.Prev = ll.head
+	// Swap n to head.
+	ll.head = n
+}
+
+// PushTailNode takes an existing *Node and
+// sets it as the tail of the *Sll. The *Node
+// is also added to the score list.
+func (ll *Sll) PushTailNode(n *Node) {
+	ll.Lock()
+	defer ll.Unlock()
+
+	ll.scores = append(ll.scores, n)
+
+	// Is this a new ll?
+	if ll.tail == nil {
+		ll.head = n
+		ll.tail = n
+		return
+	}
+
+	// Set current tail prev to n.
+	ll.tail.Prev = n
+	// Set n next to current tail.
+	n.Next = ll.tail
+	// Swap n to tail.
+	ll.tail = n
 }
