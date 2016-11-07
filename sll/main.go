@@ -7,7 +7,7 @@ import (
 
 // Sll is a scored linked list.
 type Sll struct {
-	sync.Mutex
+	sync.RWMutex
 	head   *Node
 	tail   *Node
 	scores nodeScoreList
@@ -15,6 +15,7 @@ type Sll struct {
 
 // Node is a scored linked list node.
 type Node struct {
+	sync.Mutex
 	Value interface{}
 	Score int64
 	Next  *Node
@@ -35,7 +36,9 @@ type nodeScoreList []*Node
 
 // Read returns a *Node Value and increments the score.
 func (n *Node) Read() interface{} {
+	n.Lock()
 	n.Score++
+	n.Unlock()
 	return n.Value
 }
 
@@ -55,16 +58,22 @@ func (nsl nodeScoreList) Swap(i, j int) {
 
 // Len returns the count of nodes in the *Sll.
 func (ll *Sll) Len() int {
+	ll.RLock()
+	defer ll.Unlock()
 	return len(ll.scores)
 }
 
 // Head returns the head *Node.
 func (ll *Sll) Head() *Node {
+	ll.RLock()
+	defer ll.Unlock()
 	return ll.head
 }
 
 // Tail returns the head *Node.
 func (ll *Sll) Tail() *Node {
+	ll.RLock()
+	defer ll.Unlock()
 	return ll.tail
 }
 
