@@ -14,4 +14,6 @@ func main() {
 
 	c.Set("key", "val")
 	fmt.Println(c.Get("key"))
+	c.Delete("key")
+	fmt.Println(c.Get("key"))
 }

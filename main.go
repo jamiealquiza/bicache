@@ -9,26 +9,32 @@ import (
 // Bicache
 type Bicache struct {
 	sync.RWMutex
-	mfuCacheMap map[interface{}]*sll.Node
-	mruCacheMap map[interface{}]*sll.Node
+	CacheMap map[interface{}]*Entry
 	mfuCache    *sll.Sll
 	mruCache    *sll.Sll
-	mfuCap      int
-	mruCap      int
+	mfuCap      uint
+	mruCap      uint
+	// MFU top/bottom scores.
 }
 
 // Config
 type Config struct {
-	MruSize int
-	MfuSize int
+	MfuSize uint
+	MruSize uint
+	// DeferEviction true // on-write vs automatic
 	// Inverted index
+}
+
+// Entry
+type Entry struct {
+	node *sll.Node
+	state uint8 // 0 = MRU, 1 = MFU
 }
 
 // New
 func New(c *Config) *Bicache {
 	return &Bicache{
-		mfuCacheMap: make(map[interface{}]*sll.Node),
-		mruCacheMap: make(map[interface{}]*sll.Node),
+		CacheMap: make(map[interface{}]*Entry),
 		mfuCache:    sll.New(),
 		mruCache:    sll.New(),
 		mfuCap:      c.MfuSize,
@@ -41,25 +47,21 @@ func (b *Bicache) Set(k, v interface{}) {
 	b.Lock()
 	defer b.Unlock()
 
-	// Check the MFU cache. We never manually
-	// create an entry in the MFU; only update
-	// an existing entry.
-	if n, exists := b.mfuCacheMap[k]; exists {
-		n.Value = v
-		return
-	}
-
-	// Check the MRU cache. If it exists, update.
-	// If it doesn't exist, create at head.
-	if n, exists := b.mruCacheMap[k]; exists {
-		n.Value = v
-		b.mruCache.MoveToHead(n)
+	// If the entry exists, update. If not,
+	// create at the tail of the MRU cache.
+	if n, exists := b.CacheMap[k]; exists {
+		n.node.Value = v
+		if n.state == 0 {
+			b.mruCache.MoveToHead(n.node)
+		}
 	} else {
-		n = b.mruCache.PushHead(v)
-		b.mruCacheMap[k] = n
+		// Create at the MRU tail.
+		newNode := b.mruCache.PushTail(v)
+		b.CacheMap[k] = &Entry{
+			node: newNode,
+			state: 0,
+		}
 	}
-
-	// Check MRU size here.
 }
 
 // Get
@@ -67,12 +69,35 @@ func (b *Bicache) Get(k interface{}) interface{} {
 	b.RLock()
 	defer b.RUnlock()
 
-	if n, exists := b.mruCacheMap[k]; !exists {
-		return nil
-	} else {
-		return n.Read()
+	if n, exists := b.CacheMap[k]; exists {
+		return n.node.Read()
 	}
+
+	return nil
 }
 
 // Delete
-//func (b *Bicache) Delete(k interface{}) {
+func (b *Bicache) Delete(k interface{}) {
+	b.Lock()
+	defer b.Unlock()
+
+	if n, exists := b.CacheMap[k]; exists {
+		delete(b.CacheMap, k)
+		switch n.state {
+		case 0:
+			b.mruCache.Remove(n.node)
+		case 1:
+			b.mfuCache.Remove(n.node)
+		}
+	}
+}
+
+// PromoteEvict checks if the MRU exceeds the
+// Config.MruSize. If so, the top MRU scores are
+// checked against the MFU. If any of the top MRU scores
+// are greater than the lowest MFU scores, they are promoted
+// to the MFU. Any remaining count of evictions that must occur
+// are removed from the tail of the MRU.
+//func (b *Bicache) PromoteEvict() {
+
+//}
