@@ -128,7 +128,9 @@ func (ll *Sll) MoveToHead(n *Node) {
 	}
 
 	// Set current head next to n.
-	ll.head.Next = n
+	if ll.head != nil {
+		ll.head.Next = n
+	}
 	// Set n prev to current head.
 	n.Prev = ll.head
 	// Swap n to head.
@@ -150,7 +152,9 @@ func (ll *Sll) MoveToTail(n *Node) {
 	}
 
 	// Set current tail prev to n.
-	ll.tail.Prev = n
+	if ll.tail != nil {
+		ll.tail.Prev = n
+	}
 	// Set n next to current tail.
 	n.Next = ll.tail
 	// Swap n to tail.
@@ -227,6 +231,28 @@ func (ll *Sll) PushTail(v interface{}) *Node {
 func (ll *Sll) Remove(n *Node) {
 	ll.Lock()
 	defer ll.Unlock()
+
+	// Check if this node is the head/tail.
+	// Duplicates the RemoveHead/Tail() logic rather than calling it
+	// to avoid unlocking/relocking and optimistically
+	// assuming pending write locks don't change the head.
+	if ll.head == n {
+		// Set head to current head.Prev.
+		ll.head = ll.head.Prev
+		// Unlink old head's refs.
+		ll.head.Next.Prev = nil
+		// Set new head.Next to nil.
+		ll.head.Next = nil
+	}
+
+	if ll.tail == n {
+		// Set tail to current tail.Next
+		ll.tail = ll.tail.Next
+		// Unlink old tail's refs.
+		ll.tail.Prev.Next = nil
+		// Set new tail.Prev to nil.
+		ll.tail.Prev = nil
+	}
 
 	// Link next and prev.
 	if n.Next != nil {
