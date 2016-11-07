@@ -57,10 +57,10 @@ func (nsl nodeScoreList) Swap(i, j int) {
 }
 
 // Len returns the count of nodes in the *Sll.
-func (ll *Sll) Len() int {
+func (ll *Sll) Len() uint {
 	ll.RLock()
 	defer ll.RUnlock()
-	return len(ll.scores)
+	return uint(len(ll.scores))
 }
 
 // Head returns the head *Node.

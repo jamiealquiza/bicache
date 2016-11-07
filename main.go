@@ -22,13 +22,20 @@ type Config struct {
 	MfuSize uint
 	MruSize uint
 	// DeferEviction true // on-write vs automatic
-	// Inverted index
 }
 
 // Entry
 type Entry struct {
 	node *sll.Node
 	state uint8 // 0 = MRU, 1 = MFU
+}
+
+// Stats
+type Stats struct {
+	MfuSize uint
+	MruSize uint
+	MfuUsedP uint
+	MruUsedP uint
 }
 
 // New
@@ -40,6 +47,18 @@ func New(c *Config) *Bicache {
 		mfuCap:      c.MfuSize,
 		mruCap:      c.MruSize,
 	}
+}
+
+// Stats
+func (b *Bicache) Stats() *Stats {
+	b.RLock()
+	stats := &Stats{MfuSize: b.mfuCache.Len(), MruSize: b.mruCache.Len()}
+	b.RUnlock()
+
+	stats.MfuUsedP = uint(float64(stats.MfuSize) / float64(b.mfuCap) * 100)
+	stats.MruUsedP = uint(float64(stats.MruSize) / float64(b.mruCap) * 100)
+
+	return stats
 }
 
 // Set
@@ -98,6 +117,4 @@ func (b *Bicache) Delete(k interface{}) {
 // are greater than the lowest MFU scores, they are promoted
 // to the MFU. Any remaining count of evictions that must occur
 // are removed from the tail of the MRU.
-//func (b *Bicache) PromoteEvict() {
-
-//}
+//func (b *Bicache) PromoteEvict() {}
