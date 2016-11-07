@@ -233,24 +233,14 @@ func (ll *Sll) Remove(n *Node) {
 	defer ll.Unlock()
 
 	// Check if this node is the head/tail.
-	// Duplicates the RemoveHead/Tail() logic rather than calling it
-	// to avoid unlocking/relocking and optimistically
-	// assuming pending write locks don't change the head.
+	// If so, promote next to head.
 	if ll.head == n {
-		// Set head to current head.Prev.
-		ll.head = ll.head.Prev
-		// Unlink old head's refs.
-		ll.head.Next.Prev = nil
-		// Set new head.Next to nil.
+		ll.head = n.Prev
 		ll.head.Next = nil
 	}
-
+	// Or promote last to tail.
 	if ll.tail == n {
-		// Set tail to current tail.Next
-		ll.tail = ll.tail.Next
-		// Unlink old tail's refs.
-		ll.tail.Prev.Next = nil
-		// Set new tail.Prev to nil.
+		ll.tail = n.Next
 		ll.tail.Prev = nil
 	}
 
@@ -264,6 +254,18 @@ func (ll *Sll) Remove(n *Node) {
 
 	// Remove references.
 	n.Next, n.Prev = nil, nil
+
+	// Remove from score list.
+	newScores := make(nodeScoreList, len(ll.scores)-1)
+	var pos int
+	for _, s := range ll.scores {
+		if s != n {
+			newScores[pos] = s
+			pos++
+		}
+	}
+
+	ll.scores = newScores
 }
 
 // RemoveHead removes the current *Sll.head.
