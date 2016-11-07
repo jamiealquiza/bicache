@@ -8,21 +8,19 @@ import (
 
 // Bicache
 type Bicache struct {
-	sync.Mutex
+	sync.RWMutex
 	mfuCacheMap map[interface{}]*sll.Node
 	mruCacheMap map[interface{}]*sll.Node
 	mfuCache    *sll.Sll
 	mruCache    *sll.Sll
 	mfuCap      int
 	mruCap      int
-	safe        bool
 }
 
 // Config
 type Config struct {
 	MruSize int
 	MfuSize int
-	Safe    bool
 	// Inverted index
 }
 
@@ -35,32 +33,39 @@ func New(c *Config) *Bicache {
 		mruCache:    sll.New(),
 		mfuCap:      c.MfuSize,
 		mruCap:      c.MruSize,
-		safe:        c.Safe,
 	}
 }
 
 // Set
 func (b *Bicache) Set(k, v interface{}) {
-	if b.safe {
-		b.Lock()
-		defer b.Unlock()
+	b.Lock()
+	defer b.Unlock()
+
+	// Check the MFU cache. We never manually
+	// create an entry in the MFU; only update
+	// an existing entry.
+	if n, exists := b.mfuCacheMap[k]; exists {
+		n.Value = v
+		return
 	}
 
-	if n, exists := b.mruCacheMap[k]; !exists {
-		n = b.mruCache.PushHead(v)
-		b.mruCacheMap[k] = n
-	} else {
+	// Check the MRU cache. If it exists, update.
+	// If it doesn't exist, create at head.
+	if n, exists := b.mruCacheMap[k]; exists {
 		n.Value = v
 		b.mruCache.MoveToHead(n)
+	} else {
+		n = b.mruCache.PushHead(v)
+		b.mruCacheMap[k] = n
 	}
+
+	// Check MRU size here.
 }
 
 // Get
 func (b *Bicache) Get(k interface{}) interface{} {
-	if b.safe {
-		b.Lock()
-		defer b.Unlock()
-	}
+	b.RLock()
+	defer b.RUnlock()
 
 	if n, exists := b.mruCacheMap[k]; !exists {
 		return nil
@@ -68,3 +73,6 @@ func (b *Bicache) Get(k interface{}) interface{} {
 		return n.Read()
 	}
 }
+
+// Delete
+//func (b *Bicache) Delete(k interface{}) {
