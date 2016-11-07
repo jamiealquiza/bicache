@@ -7,10 +7,17 @@ import (
 	"github.com/jamiealquiza/bicache/sll"
 )
 
-// Bicache
+// Bicache implements a two-tier
+// cache, combining a MFU and MRU as
+// scored linked lists. Each cache key is scored
+// by read count in order to track usage frequency.
+// New keys are only created in the MRU; the MFU is only
+// populated by promoting top-score MRU keys when evictions
+// are required. A top-level cache map is used for key lookups 
+// and routing requests to the appropriate cache.
 type Bicache struct {
 	sync.RWMutex
-	cacheMap map[interface{}]*Entry
+	cacheMap map[interface{}]*entry
 	mfuCache *sll.Sll
 	mruCache *sll.Sll
 	mfuCap   uint
@@ -18,31 +25,38 @@ type Bicache struct {
 	// MFU top/bottom scores.
 }
 
-// Config
+// Config holds a Bicache configuration.
+// The MFU and MRU cache sizes are set in number
+// of keys.
 type Config struct {
 	MfuSize uint
 	MruSize uint
 	// DeferEviction true // on-write vs automatic
 }
 
-// Entry
-type Entry struct {
+// Entry is a container type for scored
+// linked list nodes. Entries are referenced
+// in the Bicache cache map and are used to
+// locate which cache a lookup should hit.
+type entry struct {
 	node  *sll.Node
 	state uint8 // 0 = MRU, 1 = MFU
 }
 
-// Stats
+// Stats holds Bicache
+// statistics data.
 type Stats struct {
-	MfuSize  uint
-	MruSize  uint
-	MfuUsedP uint
-	MruUsedP uint
+	MfuSize  uint // Number of acive MFU keys.
+	MruSize  uint // Number of active MRU keys.
+	MfuUsedP uint // MFU used in percent.
+	MruUsedP uint // MRU used in percent.
 }
 
-// New
+// New takes a *Config and returns
+// an initialized *Bicache.
 func New(c *Config) *Bicache {
 	return &Bicache{
-		cacheMap: make(map[interface{}]*Entry),
+		cacheMap: make(map[interface{}]*entry),
 		mfuCache: sll.New(),
 		mruCache: sll.New(),
 		mfuCap:   c.MfuSize,
@@ -50,7 +64,8 @@ func New(c *Config) *Bicache {
 	}
 }
 
-// Stats
+// Stats returns a *Stats with
+// Bicache statistics data.
 func (b *Bicache) Stats() *Stats {
 	b.RLock()
 	stats := &Stats{MfuSize: b.mfuCache.Len(), MruSize: b.mruCache.Len()}
@@ -62,7 +77,9 @@ func (b *Bicache) Stats() *Stats {
 	return stats
 }
 
-// Set
+// Set takes a key and value and creates
+// and entry in the MRU cache. If the key
+// already exists, the value is updated.
 func (b *Bicache) Set(k, v interface{}) {
 	b.Lock()
 	// If the entry exists, update. If not,
@@ -75,7 +92,7 @@ func (b *Bicache) Set(k, v interface{}) {
 	} else {
 		// Create at the MRU tail.
 		newNode := b.mruCache.PushTail(v)
-		b.cacheMap[k] = &Entry{
+		b.cacheMap[k] = &entry{
 			node:  newNode,
 			state: 0,
 		}
@@ -85,7 +102,8 @@ func (b *Bicache) Set(k, v interface{}) {
 	b.PromoteEvict()
 }
 
-// Get
+// Get takes a key and returns the value. Every get
+// on a key increases the key score.
 func (b *Bicache) Get(k interface{}) interface{} {
 	b.RLock()
 	defer b.RUnlock()
@@ -97,7 +115,7 @@ func (b *Bicache) Get(k interface{}) interface{} {
 	return nil
 }
 
-// Delete
+// Delete deletes a key.
 func (b *Bicache) Delete(k interface{}) {
 	b.Lock()
 	defer b.Unlock()
