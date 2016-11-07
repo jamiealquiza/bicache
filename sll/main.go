@@ -17,7 +17,7 @@ type Sll struct {
 type Node struct {
 	sync.Mutex
 	Value interface{}
-	Score int64
+	Score uint64
 	Next  *Node
 	Prev  *Node
 	// Might add a create field for TTL.
@@ -59,21 +59,21 @@ func (nsl nodeScoreList) Swap(i, j int) {
 // Len returns the count of nodes in the *Sll.
 func (ll *Sll) Len() int {
 	ll.RLock()
-	defer ll.Unlock()
+	defer ll.RUnlock()
 	return len(ll.scores)
 }
 
 // Head returns the head *Node.
 func (ll *Sll) Head() *Node {
 	ll.RLock()
-	defer ll.Unlock()
+	defer ll.RUnlock()
 	return ll.head
 }
 
 // Tail returns the head *Node.
 func (ll *Sll) Tail() *Node {
 	ll.RLock()
-	defer ll.Unlock()
+	defer ll.RUnlock()
 	return ll.tail
 }
 
@@ -89,7 +89,7 @@ func (ll *Sll) HighScores(r int) []*Node {
 
 	sort.Sort(ll.scores)
 
-	if r > ll.Len() {
+	if r > len(ll.scores) {
 		return ll.scores
 	}
 
