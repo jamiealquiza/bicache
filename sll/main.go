@@ -229,8 +229,12 @@ func (ll *Sll) Remove(n *Node) {
 	defer ll.Unlock()
 
 	// Link next and prev.
-	n.Next.Prev = n.Prev
-	n.Prev.Next = n.Next
+	if n.Next != nil {
+		n.Next.Prev = n.Prev
+	}
+	if n.Prev != nil {
+		n.Prev.Next = n.Next
+	}
 
 	// Remove references.
 	n.Next, n.Prev = nil, nil
