@@ -1,8 +1,8 @@
 package bicache
 
 import (
-	//"fmt"
 	"sync"
+	"time"
 
 	"github.com/jamiealquiza/bicache/sll"
 )
@@ -13,15 +13,16 @@ import (
 // by read count in order to track usage frequency.
 // New keys are only created in the MRU; the MFU is only
 // populated by promoting top-score MRU keys when evictions
-// are required. A top-level cache map is used for key lookups 
+// are required. A top-level cache map is used for key lookups
 // and routing requests to the appropriate cache.
 type Bicache struct {
 	sync.RWMutex
-	cacheMap map[interface{}]*entry
-	mfuCache *sll.Sll
-	mruCache *sll.Sll
-	mfuCap   uint
-	mruCap   uint
+	cacheMap  map[interface{}]*entry
+	mfuCache  *sll.Sll
+	mruCache  *sll.Sll
+	mfuCap    uint
+	mruCap    uint
+	autoEvict bool
 	// MFU top/bottom scores.
 }
 
@@ -29,9 +30,9 @@ type Bicache struct {
 // The MFU and MRU cache sizes are set in number
 // of keys.
 type Config struct {
-	MfuSize uint
-	MruSize uint
-	// DeferEviction true // on-write vs automatic
+	MfuSize   uint
+	MruSize   uint
+	AutoEvict uint // on-write vs automatic
 }
 
 // Entry is a container type for scored
@@ -55,13 +56,27 @@ type Stats struct {
 // New takes a *Config and returns
 // an initialized *Bicache.
 func New(c *Config) *Bicache {
-	return &Bicache{
+	cache := &Bicache{
 		cacheMap: make(map[interface{}]*entry),
 		mfuCache: sll.New(),
 		mruCache: sll.New(),
 		mfuCap:   c.MfuSize,
 		mruCap:   c.MruSize,
 	}
+
+	if c.AutoEvict > 0 {
+		cache.autoEvict = true
+		go func(b *Bicache) {
+			interval := time.NewTicker(time.Millisecond * time.Duration(c.AutoEvict))
+			defer interval.Stop()
+
+			for _ = range interval.C {
+				b.PromoteEvict()
+			}
+		}(cache)
+	}
+
+	return cache
 }
 
 // Stats returns a *Stats with

@@ -22,7 +22,10 @@ func (b *Bicache) Set(k, v interface{}) {
 	}
 
 	b.Unlock()
-	b.PromoteEvict()
+
+	if !b.autoEvict {
+		b.PromoteEvict()
+	}
 }
 
 // Get takes a key and returns the value. Every get
