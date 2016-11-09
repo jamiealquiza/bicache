@@ -22,6 +22,7 @@
 package bicache
 
 import (
+	"sort"
 	"sync"
 	"time"
 
@@ -117,24 +118,44 @@ func (b *Bicache) Stats() *Stats {
 // Config.MruSize. If so, the top MRU scores are
 // checked against the MFU. If any of the top MRU scores
 // are greater than the lowest MFU scores, they are promoted
-// to the MFU. Any remaining count of evictions that must occur
-// are removed from the tail of the MRU.
+// to the MFU (if possible). Any remaining count of evictions 
+// that must occur are removed from the tail of the MRU.
 func (b *Bicache) PromoteEvict() {
 	b.Lock()
 	defer b.Unlock()
 
-	// How far over capacity are we?
+	// How far over MRU capacity are we?
 	mruOverflow := int(b.mruCache.Len() - b.mruCap)
-	if mruOverflow > 0 {
-		topMru := b.mruCache.HighScores(mruOverflow)
-		// Move overflow to MFU.
-		for _, node := range topMru {
-			//b.cacheMap[].state == 1
-			// Need to find the node in the cacheMap and
-			// update the state.
-			b.mruCache.Remove(node)
-			b.mfuCache.PushTailNode(node)
-		}
-
+	if mruOverflow <= 0 {
+		return
 	}
+
+	// Get the top n MRU elements
+	// where n = MRU capacity overflow.
+	topMru := b.mruCache.HighScores(mruOverflow)
+	// Put into ascending order.
+	sort.Sort(sort.Reverse(topMru))
+
+	// Check MFU capacity.
+	mfuFree := b.mfuCap-b.mfuCache.Len()
+
+	// Promote what we can.
+	canPromote := int(mfuFree)-mruOverflow
+	if canPromote > 0 {
+		for _, node := range topMru[:canPromote] {
+				//b.cacheMap[].state == 1
+				// Need to find the node in the cacheMap and
+				// update the state.
+				b.mruCache.Remove(node)
+				b.mfuCache.PushTailNode(node)
+		}
+	}
+
+	// Get count of overflow that coulnd't be
+	// freely promoted.
+	// 1) Check if it can be promoted with
+	// a greater score.
+	// 2) Evict remainder from MRU tail.
+
+
 }
