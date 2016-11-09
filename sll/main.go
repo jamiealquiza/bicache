@@ -83,7 +83,7 @@ func (ll *Sll) Tail() *Node {
 // be the node with the highest score. Calling HighScores
 // locks the *Sll for the duration of a binary sort
 // of roughly O(log ll.Len()) time.
-func (ll *Sll) HighScores(r int) []*Node {
+func (ll *Sll) HighScores(r int) nodeScoreList {
 	ll.Lock()
 	defer ll.Unlock()
 
@@ -104,7 +104,7 @@ func (ll *Sll) HighScores(r int) []*Node {
 // be the node with the lowest score. Calling LowScores
 // locks the *Sll for the duration of a binary sort
 // of roughly O(log ll.Len()) time.
-func (ll *Sll) LowScores(r int) []*Node {
+func (ll *Sll) LowScores(r int) nodeScoreList {
 	ll.Lock()
 	defer ll.Unlock()
 
