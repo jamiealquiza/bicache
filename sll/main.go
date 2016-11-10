@@ -264,6 +264,7 @@ func (ll *Sll) Remove(n *Node) {
 	n.Next, n.Prev = nil, nil
 
 	// Remove from score list.
+	// TODO need to do something much faster here.
 	newScores := make(nodeScoreList, len(ll.scores)-1)
 	var pos int
 	for _, s := range ll.scores {
