@@ -5,40 +5,17 @@ import (
 	"fmt"
 	"time"
 
-	//"github.com/jamiealquiza/tachymeter"
+	"github.com/jamiealquiza/tachymeter"
 	"github.com/jamiealquiza/bicache"
 )
 
 func main() {
 	c := bicache.New(&bicache.Config{
-		MfuSize: 100,
-		MruSize: 3,
-		AutoEvict: 500,
+		MfuSize: 50000,
+		MruSize: 50000,
+		AutoEvict: 5000,
 	})
 
-	c.Set("one", "one")
-	c.Set("two", "two")
-	c.Set("three", "three")
-	c.Set("four", "four")
-	c.Set("five", "five")
-	c.Set("six", "six")
-
-	fmt.Println(c.Get("one"))
-	fmt.Println(c.Get("one"))
-	fmt.Println(c.Get("six"))
-	time.Sleep(3*time.Second)
-
-	fmt.Println(c.Get("one"))
-
-	fmt.Println()
-
-	stats := c.Stats()
-	j, _ := json.Marshal(stats)
-	fmt.Println(string(j))
-
-	c.Delete("one")
-
-	/*
 	t := tachymeter.New(&tachymeter.Config{Size: 100000})
 	fmt.Println("[ Set 100000 keys ]")
 	for i := 0; i < 100000; i++ {
@@ -60,5 +37,9 @@ func main() {
 	}
 	t.AddCount(10000)
 
-	t.Calc().Dump()*/
+	t.Calc().Dump()
+
+	stats := c.Stats()
+	j, _ := json.Marshal(stats)
+	fmt.Println(string(j))
 }

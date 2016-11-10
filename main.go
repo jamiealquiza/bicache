@@ -140,14 +140,18 @@ func (b *Bicache) PromoteEvict() {
 	mfuFree := b.mfuCap-b.mfuCache.Len()
 
 	// Promote what we can.
-	canPromote := int(mfuFree)-mruOverflow
+	// Can promote is the count of mruOverflow
+	// that can fit into currently unused MFU slots.
+	canPromote := int(mfuFree)-(int(mfuFree)-mruOverflow)
+
 	if canPromote > 0 {
 		for _, node := range topMru[:canPromote] {
-				//b.cacheMap[].state == 1
-				// Need to find the node in the cacheMap and
-				// update the state.
-				b.mruCache.Remove(node)
-				b.mfuCache.PushTailNode(node)
+			// Need to update the state.
+			b.cacheMap[node.Value.([2]interface{})[0]].state = 1
+			// Remove from MRU.
+			b.mruCache.Remove(node)
+			// Move to MFU.
+			b.mfuCache.PushTailNode(node)
 		}
 	}
 
@@ -156,6 +160,13 @@ func (b *Bicache) PromoteEvict() {
 	// 1) Check if it can be promoted with
 	// a greater score.
 	// 2) Evict remainder from MRU tail.
-
+	/*
+	if canPromote < mruOverflow {
+		remainder := promoteByScore(topMru[canPromote:])
+	} /*else {
+		for _, node := range 
+			delete(b.cacheMap, k) // this needs a reverse lookup too.
+			b.mruCache.Remove(n)
+	}*/
 
 }

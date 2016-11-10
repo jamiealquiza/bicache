@@ -35,7 +35,7 @@ func (b *Bicache) Set(k, v interface{}) {
 		}
 	} else {
 		// Create at the MRU tail.
-		newNode := b.mruCache.PushTail(v)
+		newNode := b.mruCache.PushTail([2]interface{}{k, v})
 		b.cacheMap[k] = &entry{
 			node:  newNode,
 			state: 0,
@@ -56,7 +56,7 @@ func (b *Bicache) Get(k interface{}) interface{} {
 	defer b.RUnlock()
 
 	if n, exists := b.cacheMap[k]; exists {
-		return n.node.Read()
+		return n.node.Read().([2]interface{})[1]
 	}
 
 	return nil
