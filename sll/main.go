@@ -264,17 +264,17 @@ func (ll *Sll) Remove(n *Node) {
 	n.Next, n.Prev = nil, nil
 
 	// Remove from score list.
-	// TODO need to do something much faster here.
-	newScores := make(nodeScoreList, len(ll.scores)-1)
-	var pos int
-	for _, s := range ll.scores {
-		if s != n {
-			newScores[pos] = s
-			pos++
-		}
+	// Get index, remove element.
+	i := sort.Search(len(ll.scores), func(i int) bool { return ll.scores[i] == n })
+	if i == len(ll.scores) {
+		// If the index is at the tail,
+		// we just exclude the last element.
+		ll.scores = ll.scores[:len(ll.scores)-1]
+		return
 	}
 
-	ll.scores = newScores
+	ll.scores = append(ll.scores[:i], ll.scores[i+1:]...)
+
 }
 
 // RemoveHead removes the current *Sll.head.
