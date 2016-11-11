@@ -27,6 +27,7 @@ func main() {
 	t.Calc().Dump()
 
 	fmt.Println()
+	time.Sleep(3*time.Second)
 
 	t.Reset()
 	fmt.Println("[ Get 100000 keys ]")
@@ -41,5 +42,5 @@ func main() {
 
 	stats := c.Stats()
 	j, _ := json.Marshal(stats)
-	fmt.Println(string(j))
+	fmt.Printf("\n%s\n", string(j))
 }
