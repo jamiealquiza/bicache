@@ -50,11 +50,16 @@ type Bicache struct {
 
 // Config holds a Bicache configuration.
 // The MFU and MRU cache sizes are set in number
-// of keys.
+// of keys. The AutoEvict setting specifies an
+// interval in milliseconds that a background
+// goroutine will handle MRU->MFU promotion
+// and MFU/MRU evictions. Setting this to 0
+// defers the operation until each Set is called
+// on the bicache.
 type Config struct {
 	MfuSize   uint
 	MruSize   uint
-	AutoEvict uint // on-write vs automatic
+	AutoEvict uint
 }
 
 // Entry is a container type for scored
