@@ -17,7 +17,7 @@ func main() {
 	})
 
 	t := tachymeter.New(&tachymeter.Config{Size: 50000})
-	fmt.Println("[ Set 100000 keys ]")
+	fmt.Println("[ Set 50000 keys ]")
 	for i := 0; i < 50000; i++ {
 		start := time.Now()
 		c.Set(i, i*2)
@@ -30,7 +30,7 @@ func main() {
 	time.Sleep(3*time.Second)
 
 	t.Reset()
-	fmt.Println("[ Get 100000 keys ]")
+	fmt.Println("[ Get 50000 keys ]")
 	for i := 0; i < 50000; i++ {
 		start := time.Now()
 		_ = c.Get(i)

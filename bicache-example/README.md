@@ -21,7 +21,7 @@ for i := 0; i < 50000; i++ {
 Running:
 ```
 % bicache-example
-[ Set 100000 keys ]
+[ Set 50000 keys ]
 50000 samples of 50000 events
 Total:			49.690964ms
 Avg.:			993ns
@@ -33,7 +33,7 @@ Max:			1.517224ms
 Min:			347ns
 Rate/sec.:		1006219.16
 
-[ Get 100000 keys ]
+[ Get 50000 keys ]
 50000 samples of 50000 events
 Total:			11.500957ms
 Avg.:			230ns
