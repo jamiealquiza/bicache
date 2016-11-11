@@ -240,26 +240,34 @@ func (ll *Sll) Remove(n *Node) {
 	ll.Lock()
 	defer ll.Unlock()
 
+	// If this is a single element list.
+	if ll.head == n && ll.tail == n {
+		ll.head, ll.tail = nil, nil
+		// These should already be nil:
+		n.Next, n.Prev = nil, nil
+		goto updatescores
+	}
+
 	// Check if this node is the head/tail.
-	// If so, promote next to head.
+	// If head, promote prev to head.
 	if ll.head == n {
 		ll.head = n.Prev
 		ll.head.Next = nil
+		goto updatescores
 	}
-	// Or promote last to tail.
+	// If tail, promote next to tail.
 	if ll.tail == n {
 		ll.tail = n.Next
 		ll.tail.Prev = nil
+		goto updatescores
 	}
 
-	// Link next and prev.
-	if n.Next != nil {
-		n.Next.Prev = n.Prev
-	}
-	if n.Prev != nil {
-		n.Prev.Next = n.Next
-	}
+	// This node is otherwise at a non-end.
+	// Link the next node and the prev.
+	n.Next.Prev = n.Prev
+	n.Prev.Next = n.Next
 
+updatescores:
 	// Remove references.
 	n.Next, n.Prev = nil, nil
 
@@ -296,7 +304,7 @@ func (ll *Sll) RemoveHead() {
 	oldHead.Next, oldHead.Prev = nil, nil
 }
 
-// RemoveTail removes the current *Sll.tail.
+// RemoveTail removes the current *Sll.tail.s
 func (ll *Sll) RemoveTail() {
 	ll.Lock()
 	defer ll.Unlock()
@@ -339,6 +347,8 @@ func (ll *Sll) PushHeadNode(n *Node) {
 	n.Prev = ll.head
 	// Swap n to head.
 	ll.head = n
+	// Set n Next to nil.
+	n.Next = nil
 }
 
 // PushTailNode takes an existing *Node and
@@ -363,4 +373,6 @@ func (ll *Sll) PushTailNode(n *Node) {
 	n.Next = ll.tail
 	// Swap n to tail.
 	ll.tail = n
+	// Set n Prev to nil.
+	n.Prev = nil
 }

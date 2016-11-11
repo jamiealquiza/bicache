@@ -136,6 +136,13 @@ func (b *Bicache) PromoteEvict() {
 	// Put into ascending order.
 	sort.Sort(sort.Reverse(topMru))
 
+	// We need addresses because topMru
+	// will change as mruCache.Remove() is called.
+	var addresses = make([]*sll.Node, len(topMru))
+	for i, n := range topMru {
+		addresses[i] = n
+	}
+
 	// Check MFU capacity.
 	mfuFree := b.mfuCap - b.mfuCache.Len()
 
@@ -143,16 +150,22 @@ func (b *Bicache) PromoteEvict() {
 	// Can promote is the count of mruOverflow
 	// that can fit into currently unused MFU slots.
 	canPromote := int(mfuFree) - (int(mfuFree) - mruOverflow)
+
 	if canPromote > 0 {
-		for _, node := range topMru[:canPromote] {
+		for _, node := range addresses[:canPromote] {
+			// We have to do this because
+			// performing a Remove and PushToTail
+			// with the same node is difficult.
+			newNode := &sll.Node{}
+			*newNode = *node
 			// Need to update the state.
 			b.cacheMap[node.Value.([2]interface{})[0]].state = 1
-			// Remove from MRU.
+			b.cacheMap[node.Value.([2]interface{})[0]].node = newNode
+			// Copy to MFU.
+			b.mfuCache.PushTailNode(newNode)
+			// Remove from the MRU.
 			b.mruCache.Remove(node)
-			// Move to MFU.
-			b.mfuCache.PushTailNode(node)
 		}
-
 	}
 
 	// Get count of overflow that coulnd't be
@@ -168,5 +181,4 @@ func (b *Bicache) PromoteEvict() {
 				delete(b.cacheMap, k) // this needs a reverse lookup too.
 				b.mruCache.Remove(n)
 		}*/
-
 }
