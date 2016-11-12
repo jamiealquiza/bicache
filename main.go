@@ -22,6 +22,7 @@
 package bicache
 
 import (
+	"fmt"
 	"sort"
 	"sync"
 	"time"
@@ -141,23 +142,32 @@ func (b *Bicache) PromoteEvict() {
 	// Put into ascending order.
 	sort.Sort(sort.Reverse(topMru))
 
-	// We need addresses because topMru
-	// will change as mruCache.Remove() is called.
-	var addresses = make([]*sll.Node, len(topMru))
-	for i, n := range topMru {
-		addresses[i] = n
-	}
-
 	// Check MFU capacity.
 	mfuFree := b.mfuCap - b.mfuCache.Len()
 
 	// Promote what we can.
-	// Can promote is the count of mruOverflow
+	// canPromote is the count of mruOverflow
 	// that can fit into currently unused MFU slots.
-	canPromote := int(mfuFree) - (int(mfuFree) - mruOverflow)
+	// This is only likely to be met if this
+	// is a somewhat new cache.
+	var canPromote int
+	if int(mfuFree) >= mruOverflow {
+		canPromote = mruOverflow
+	} else {
+		canPromote = int(mfuFree)
+	}
 
+	var start *sll.Node
+	// If the MFU is already full,
+	// we can skip the next block.
+	if mfuFree == 0 {
+		goto promoteByScore
+	}
+
+	// This is all MRU->MFU promotion
+	// using free slots.
 	if canPromote > 0 {
-		for _, node := range addresses[:canPromote] {
+		for _, node := range topMru[:canPromote] {
 			// We have to do this because
 			// performing a Remove and PushToTail
 			// with the same node is difficult.
@@ -171,19 +181,64 @@ func (b *Bicache) PromoteEvict() {
 			// Remove from the MRU.
 			b.mruCache.Remove(node)
 		}
+
+		// If we were able to promote
+		// all the overflow, return. 
+		if canPromote == len(topMru) {
+			return
+		}
 	}
 
-	// Get count of overflow that coulnd't be
-	// freely promoted.
-	// 1) Check if it can be promoted with
-	// a greater score.
-	// 2) Evict remainder from MRU tail.
-	/*
-		if canPromote < mruOverflow {
-			remainder := promoteByScore(topMru[canPromote:])
-		} /*else {
-			for _, node := range
-				delete(b.cacheMap, k) // this needs a reverse lookup too.
-				b.mruCache.Remove(n)
-		}*/
+promoteByScore:
+
+	start = b.mruCache.Tail()
+	fmt.Println("[mru]")
+	for {
+		fmt.Printf("%d:%d -> ", start.Value.([2]interface{})[1], start.Score)
+		if start.Next != nil {
+			start = start.Next
+		} else {
+			break
+		}
+	}
+	fmt.Println()
+	start = b.mfuCache.Tail()
+	fmt.Println("[mfu]")
+	for {
+		fmt.Printf("%d:%d -> ", start.Value.([2]interface{})[1], start.Score)
+		if start.Next != nil {
+			start = start.Next
+		} else {
+			break
+		}
+	}
+	fmt.Println()
+
+	// We're here on two conditions:
+	// 1) The MFU was full. We need to handle all topMru (canPromote == 0).
+	// 2) We promoted some topMru and have leftovers (canPromote > 0).
+
+	// Get top MRU scores and bottom MFU scores to compare.
+	bottomMfu := b.mfuCache.LowScores(len(topMru[canPromote:]))
+
+	// If the lowest MFU score is higher than the lowest
+	// score to promote, none of these are eligible.
+	if bottomMfu[0].Score > topMru[canPromote].Score {
+		fmt.Println("max score not high enough")
+		goto evictFromTail
+	}
+
+	// Otherwise, scan for a replacement.
+	for _, n := range topMru[canPromote:] {
+		i := sort.Search(len(bottomMfu), func(i int) bool {
+				return bottomMfu[i].Score >= n.Score 
+			})
+		fmt.Println(i)
+	}
+	
+evictFromTail:
+	// Evict remainder from MRU tail.
+	fmt.Println("evict from tail")
+	fmt.Println()
+
 }
