@@ -345,6 +345,7 @@ func (ll *Sll) PushHeadNode(n *Node) {
 	if ll.head == nil {
 		ll.head = n
 		ll.tail = n
+		n.Next, n.Prev = nil, nil
 		return
 	}
 
@@ -371,6 +372,7 @@ func (ll *Sll) PushTailNode(n *Node) {
 	if ll.tail == nil {
 		ll.head = n
 		ll.tail = n
+		n.Next, n.Prev = nil, nil
 		return
 	}
 
