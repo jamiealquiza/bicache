@@ -92,10 +92,14 @@ func (ll *Sll) HighScores(r int) nodeScoreList {
 	// if more is being requested
 	// than exists.
 	if r > len(ll.scores) {
-		return ll.scores
+		scores := make(nodeScoreList, len(ll.scores))
+		copy(scores, ll.scores)
+		return scores
 	}
 
-	return ll.scores[len(ll.scores)-r:]
+	scores := make(nodeScoreList, r)
+	copy(scores, ll.scores[len(ll.scores)-r:])
+	return scores
 }
 
 // LowScores takes an integer and returns the
@@ -113,10 +117,13 @@ func (ll *Sll) LowScores(r int) nodeScoreList {
 	// if more is being requested
 	// than exists.
 	if r > len(ll.scores) {
-		return ll.scores
+		scores := make(nodeScoreList, len(ll.scores))
+		copy(scores, ll.scores)
+		return scores
 	}
-
-	return ll.scores[:r]
+	scores := make(nodeScoreList, r)
+	copy(scores, ll.scores[:r])
+	return scores
 }
 
 // MoveToHead takes a *Node and moves it
