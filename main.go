@@ -130,6 +130,38 @@ func (b *Bicache) PromoteEvict() {
 	b.Lock()
 	defer b.Unlock()
 
+	fmt.Println("top of PromoteEvict")
+
+	start := b.mruCache.Tail()
+	fmt.Println("[mru]")
+	for {
+		if start == nil {
+			break
+		}
+		fmt.Printf("%d:%d -> ", start.Value.([2]interface{})[0], start.Score)
+		if start.Next != nil {
+			start = start.Next
+		} else {
+			break
+		}
+	}
+	fmt.Println()
+	start = b.mfuCache.Tail()
+	fmt.Println("[mfu]")
+	for {
+		if start == nil {
+			break
+		}
+		fmt.Printf("%d:%d -> ", start.Value.([2]interface{})[0], start.Score)
+		if start.Next != nil {
+			start = start.Next
+		} else {
+			break
+		}
+	}
+	fmt.Println()
+	fmt.Println()
+
 	// How far over MRU capacity are we?
 	mruOverflow := int(b.mruCache.Len() - b.mruCap)
 	if mruOverflow <= 0 {
@@ -138,9 +170,9 @@ func (b *Bicache) PromoteEvict() {
 
 	// Get the top n MRU elements
 	// where n = MRU capacity overflow.
-	topMru := b.mruCache.HighScores(mruOverflow)
+	mruToPromoteEvict := b.mruCache.HighScores(mruOverflow)
 	// Put into ascending order.
-	sort.Sort(sort.Reverse(topMru))
+	sort.Sort(sort.Reverse(mruToPromoteEvict))
 
 	// Check MFU capacity.
 	mfuFree := b.mfuCap - b.mfuCache.Len()
@@ -157,88 +189,102 @@ func (b *Bicache) PromoteEvict() {
 		canPromote = int(mfuFree)
 	}
 
-	var start *sll.Node
 	// If the MFU is already full,
 	// we can skip the next block.
-	if mfuFree == 0 {
+	if canPromote == 0 {
 		goto promoteByScore
 	}
 
 	// This is all MRU->MFU promotion
 	// using free slots.
 	if canPromote > 0 {
-		for _, node := range topMru[:canPromote] {
+		for _, node := range mruToPromoteEvict[:canPromote] {
+			fmt.Printf("promoting %d\n", node.Value.([2]interface{})[0])
 			// We have to do this because
 			// performing a Remove and PushToTail
 			// with the same node is difficult.
-			newNode := &sll.Node{}
-			*newNode = *node
-			// Need to update the state.
+			newNode := b.mfuCache.PushTail(node.Value)
+			newNode.Score = node.Score
 			b.cacheMap[node.Value.([2]interface{})[0]].state = 1
 			b.cacheMap[node.Value.([2]interface{})[0]].node = newNode
-			// Copy to MFU.
-			b.mfuCache.PushTailNode(newNode)
-			// Remove from the MRU.
 			b.mruCache.Remove(node)
 		}
 
 		// If we were able to promote
-		// all the overflow, return. 
-		if canPromote == len(topMru) {
+		// all the overflow, return.
+		if canPromote == len(mruToPromoteEvict) {
 			return
 		}
 	}
 
 promoteByScore:
 
-	start = b.mruCache.Tail()
-	fmt.Println("[mru]")
-	for {
-		fmt.Printf("%d:%d -> ", start.Value.([2]interface{})[1], start.Score)
-		if start.Next != nil {
-			start = start.Next
-		} else {
-			break
-		}
-	}
-	fmt.Println()
-	start = b.mfuCache.Tail()
-	fmt.Println("[mfu]")
-	for {
-		fmt.Printf("%d:%d -> ", start.Value.([2]interface{})[1], start.Score)
-		if start.Next != nil {
-			start = start.Next
-		} else {
-			break
-		}
-	}
-	fmt.Println()
+	// Update the mruOverflow count with
+	// the amount we were able to promote.
+	//mruOverflow-=canPromote
 
 	// We're here on two conditions:
-	// 1) The MFU was full. We need to handle all topMru (canPromote == 0).
-	// 2) We promoted some topMru and have leftovers (canPromote > 0).
+	// 1) The MFU was full. We need to handle all mruToPromoteEvict (canPromote == 0).
+	// 2) We promoted some mruToPromoteEvict and have leftovers (canPromote > 0).
 
 	// Get top MRU scores and bottom MFU scores to compare.
-	bottomMfu := b.mfuCache.LowScores(len(topMru[canPromote:]))
+	bottomMfu := b.mfuCache.LowScores(len(mruToPromoteEvict[canPromote:]))
+
+	// Counter to track
+	// how many from the MRU to
+	// be promoted were promoted
+	// by score.
+	var promotedByScore int
 
 	// If the lowest MFU score is higher than the lowest
 	// score to promote, none of these are eligible.
-	if bottomMfu[0].Score > topMru[canPromote].Score {
-		fmt.Println("max score not high enough")
-		goto evictFromTail
+	// Promoting by score is an expensive operation,
+	// it's desireable to skip if possible.
+	// TODO it may be possible that a batch of many items
+	// from the MRU overflow is elgible by score, where the
+	// rest would fail. Need to add an additional short circuit
+	// assuming we enter the promote by score routine.
+	if bottomMfu[0].Score >= mruToPromoteEvict[canPromote].Score {
+		fmt.Println(bottomMfu)
+		fmt.Println("max mru < min mfu")
+		goto evictFromMruTail
 	}
 
 	// Otherwise, scan for a replacement.
-	for _, n := range topMru[canPromote:] {
-		i := sort.Search(len(bottomMfu), func(i int) bool {
-				return bottomMfu[i].Score >= n.Score 
-			})
-		fmt.Println(i)
+	for _, n := range mruToPromoteEvict[canPromote:] {
+		fmt.Println("[bottomMfu]")
+		for _, b := range bottomMfu {
+			fmt.Printf("%d:%d -> ", b.Value.([2]interface{})[0], b.Score)
+		}
+		fmt.Printf("\n\n")
+		// TODO needs another pass. Want to avoid equal scores
+		// causing a replacement so we don't keep bouncing the same
+		// entries between the MRU/MFU.
+		i := sort.Search(len(bottomMfu)-1, func(i int) bool {
+			return bottomMfu[i].Score < n.Score
+		})
+
+		if i != -1 {
+			node := bottomMfu[i]
+			fmt.Printf("moving %v to mru\n", node.Value.([2]interface{})[0])
+			newNode := b.mruCache.PushHead(node.Value)
+			newNode.Score = node.Score
+			b.cacheMap[node.Value.([2]interface{})[0]].state = 1
+			b.cacheMap[node.Value.([2]interface{})[0]].node = newNode
+			b.mfuCache.Remove(node)
+			promotedByScore++
+		}
 	}
-	
-evictFromTail:
-	// Evict remainder from MRU tail.
-	fmt.Println("evict from tail")
-	fmt.Println()
+
+evictFromMruTail:
+	// What's our remainder count?
+	remainder := len(mruToPromoteEvict[canPromote:]) - promotedByScore
+	// Evict this many from the MRU tail.
+	for _ = range mruToPromoteEvict[remainder:] {
+		node := b.mruCache.Tail()
+		fmt.Printf("removing from tail %v\n", node.Value)
+		delete(b.cacheMap, node.Value.([2]interface{})[0])
+		b.mruCache.RemoveTail()
+	}
 
 }
