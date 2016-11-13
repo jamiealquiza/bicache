@@ -1,6 +1,7 @@
 package sll
 
 import (
+	"fmt"
 	"sort"
 	"sync"
 )
@@ -284,8 +285,16 @@ updatescores:
 
 	// Remove from score list.
 	// Get index, remove element.
-	i := sort.Search(len(ll.scores)-1, func(i int) bool { return ll.scores[i] == n })
-
+	//i := sort.Search(len(ll.scores), func(i int) bool { return ll.scores[i] == n })
+	//fmt.Println(i)
+	var i int
+	for pos, node := range ll.scores {
+		if node == n {
+			i = pos
+			break
+		}
+	}
+	fmt.Printf("removing %v, found %v\n", n.Value, ll.scores[i].Value)
 	if i == len(ll.scores) {
 		// If the index is at the tail,
 		// we just exclude the last element.
@@ -314,6 +323,22 @@ func (ll *Sll) RemoveHead() {
 	ll.head.Next = nil
 	// Remove old head references.
 	oldHead.Next, oldHead.Prev = nil, nil
+
+	var i int
+	for pos, node := range ll.scores {
+		if node == oldHead {
+			i = pos
+			break
+		}
+	}
+	if i == len(ll.scores) {
+		// If the index is at the tail,
+		// we just exclude the last element.
+		ll.scores = ll.scores[:len(ll.scores)]
+		return
+	}
+
+	ll.scores = append(ll.scores[:i], ll.scores[i+1:]...)
 }
 
 // RemoveTail removes the current *Sll.tail.s
@@ -333,6 +358,22 @@ func (ll *Sll) RemoveTail() {
 	ll.tail.Prev = nil
 	// Remove old head references.
 	oldTail.Next, oldTail.Prev = nil, nil
+
+	var i int
+	for pos, node := range ll.scores {
+		if node == oldTail {
+			i = pos
+			break
+		}
+	}
+	if i == len(ll.scores) {
+		// If the index is at the tail,
+		// we just exclude the last element.
+		ll.scores = ll.scores[:len(ll.scores)]
+		return
+	}
+
+	ll.scores = append(ll.scores[:i], ll.scores[i+1:]...)
 }
 
 // Special methods.
