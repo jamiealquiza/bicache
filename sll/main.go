@@ -99,6 +99,7 @@ func (ll *Sll) HighScores(r int) nodeScoreList {
 
 	scores := make(nodeScoreList, r)
 	copy(scores, ll.scores[len(ll.scores)-r:])
+
 	return scores
 }
 
@@ -271,6 +272,9 @@ func (ll *Sll) Remove(n *Node) {
 
 	// This node is otherwise at a non-end.
 	// Link the next node and the prev.
+	// TODO these used to have
+	// if !nil checks; making it here
+	// with nil should be considered a bug.
 	n.Next.Prev = n.Prev
 	n.Prev.Next = n.Next
 
@@ -280,11 +284,12 @@ updatescores:
 
 	// Remove from score list.
 	// Get index, remove element.
-	i := sort.Search(len(ll.scores), func(i int) bool { return ll.scores[i] == n })
+	i := sort.Search(len(ll.scores)-1, func(i int) bool { return ll.scores[i] == n })
+
 	if i == len(ll.scores) {
 		// If the index is at the tail,
 		// we just exclude the last element.
-		ll.scores = ll.scores[:len(ll.scores)-1]
+		ll.scores = ll.scores[:len(ll.scores)]
 		return
 	}
 
