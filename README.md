@@ -82,3 +82,6 @@ a string
 
 {"MfuSize":1,"MruSize":3,"MfuUsedP":20,"MruUsedP":100}
 ```
+
+# Misc.
+![img](https://raw.githubusercontent.com/jamiealquiza/catpics/master/bicache.jpg)
