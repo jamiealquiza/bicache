@@ -11,32 +11,53 @@ import (
 
 func main() {
 	c := bicache.New(&bicache.Config{
-		MfuSize:   50000,
-		MruSize:   25000,
+		MfuSize:   20000,
+		MruSize:   20000,
 		AutoEvict: 1000,
 	})
 
-	t := tachymeter.New(&tachymeter.Config{Size: 50000})
-	fmt.Println("[ Set 50000 keys ]")
-	for i := 0; i < 50000; i++ {
+	keys := 25000
+
+	t := tachymeter.New(&tachymeter.Config{Size: keys})
+	fmt.Printf("[ Set %d keys ]\n", keys)
+	for i := 0; i < keys; i++ {
 		start := time.Now()
-		c.Set(i, i*2)
+		c.Set(i, i)
 		t.AddTime(time.Since(start))
 	}
-	t.AddCount(50000)
+	t.AddCount(keys)
 	t.Calc().Dump()
 
 	fmt.Println()
-	time.Sleep(3*time.Second)
+
+	c.Get(3)
+	c.Get(3)
+	c.Get(3)
+	c.Get(3)
+	c.Get(3)
+
+	//time.Sleep(1 * time.Second)
+
+	c.Get(2)
+	c.Get(2)
+	c.Get(2)
+	c.Get(2)
+	c.Get(2)
+
+	time.Sleep(990 * time.Millisecond)
+
+	c.Set(13, 13)
+
+	//time.Sleep(5 * time.Second)
 
 	t.Reset()
-	fmt.Println("[ Get 50000 keys ]")
-	for i := 0; i < 50000; i++ {
+	fmt.Printf("[ Get %d keys ]\n", keys)
+	for i := 0; i < keys; i++ {
 		start := time.Now()
 		_ = c.Get(i)
 		t.AddTime(time.Since(start))
 	}
-	t.AddCount(50000)
+	t.AddCount(keys)
 
 	t.Calc().Dump()
 

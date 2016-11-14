@@ -29,7 +29,7 @@ func (b *Bicache) Set(k, v interface{}) {
 	// If the entry exists, update. If not,
 	// create at the tail of the MRU cache.
 	if n, exists := b.cacheMap[k]; exists {
-		n.node.Value = v
+		n.node.Value = [2]interface{}{k, v}
 		if n.state == 0 {
 			b.mruCache.MoveToHead(n.node)
 		}
@@ -56,7 +56,8 @@ func (b *Bicache) Get(k interface{}) interface{} {
 	defer b.RUnlock()
 
 	if n, exists := b.cacheMap[k]; exists {
-		return n.node.Read().([2]interface{})[1]
+		read := n.node.Read()
+		return read.([2]interface{})[1]
 	}
 
 	return nil

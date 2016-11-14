@@ -1,7 +1,7 @@
 package sll
 
 import (
-	"fmt"
+	//"fmt"
 	"sort"
 	"sync"
 )
@@ -38,8 +38,8 @@ type nodeScoreList []*Node
 // Read returns a *Node Value and increments the score.
 func (n *Node) Read() interface{} {
 	n.Lock()
+	defer n.Unlock()
 	n.Score++
-	n.Unlock()
 	return n.Value
 }
 
@@ -328,7 +328,7 @@ func (ll *Sll) RemoveTail() {
 	ll.scores = removeFromScores(ll.scores, oldTail)
 }
 
-// Special methods.
+// Special methods. TODO These may be removed.
 
 // PushHeadNode takes an existing *Node and
 // sets it as the head of the *Sll. The *Node
@@ -392,7 +392,7 @@ func removeFromScores(scores nodeScoreList, n *Node) nodeScoreList {
 	})
 
 	if i < len(scores) && scores[i] != n {
-		fmt.Println("node not found, performing linear search")
+		//fmt.Println("node not found, performing linear search")
 		for pos, node := range scores {
 			if node == n {
 				i = pos
@@ -403,7 +403,7 @@ func removeFromScores(scores nodeScoreList, n *Node) nodeScoreList {
 
 	newScoreList := make(nodeScoreList, len(scores)-1)
 
-	fmt.Printf("removing %v, found %v\n", n.Value, scores[i].Value)
+	//fmt.Printf("removing %v, found %v\n", n.Value, scores[i].Value)
 
 	if i == len(scores) {
 		// If the index is at the tail,
