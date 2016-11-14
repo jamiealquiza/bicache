@@ -85,8 +85,8 @@ func (ll *Sll) Tail() *Node {
 // locks the *Sll for the duration of a binary sort
 // of roughly O(log ll.Len()) time.
 func (ll *Sll) HighScores(r int) nodeScoreList {
-	ll.RLock()
-	defer ll.RUnlock()
+	ll.Lock()
+	defer ll.Unlock()
 
 	sort.Sort(ll.scores)
 	// Return what's available
@@ -111,8 +111,8 @@ func (ll *Sll) HighScores(r int) nodeScoreList {
 // locks the *Sll for the duration of a binary sort
 // of roughly O(log ll.Len()) time.
 func (ll *Sll) LowScores(r int) nodeScoreList {
-	ll.RLock()
-	defer ll.RUnlock()
+	ll.Lock()
+	defer ll.Unlock()
 
 	sort.Sort(ll.scores)
 	// Return what's available
@@ -283,7 +283,7 @@ updatescores:
 	// Remove references.
 	n.Next, n.Prev = nil, nil
 	//Update scores.
-	ll.scores = updateScores(ll.scores, n)
+	ll.scores = removeFromScores(ll.scores, n)
 }
 
 // RemoveHead removes the current *Sll.head.
@@ -304,7 +304,7 @@ func (ll *Sll) RemoveHead() {
 	// Remove old head references.
 	oldHead.Next, oldHead.Prev = nil, nil
 	//Update scores.
-	ll.scores = updateScores(ll.scores, oldHead)
+	ll.scores = removeFromScores(ll.scores, oldHead)
 }
 
 // RemoveTail removes the current *Sll.tail.s
@@ -325,7 +325,7 @@ func (ll *Sll) RemoveTail() {
 	// Remove old head references.
 	oldTail.Next, oldTail.Prev = nil, nil
 	//Update scores.
-	ll.scores = updateScores(ll.scores, oldTail)
+	ll.scores = removeFromScores(ll.scores, oldTail)
 }
 
 // Special methods.
@@ -384,23 +384,27 @@ func (ll *Sll) PushTailNode(n *Node) {
 	n.Prev = nil
 }
 
-// updateScores removes n from the nodeScoreList scores.
-func updateScores(scores nodeScoreList, n *Node) nodeScoreList {
-	// Remove from score list.
-	// Get index, remove element.
-	//i := sort.Search(len(ll.scores), func(i int) bool { return ll.scores[i] == n })
-	//fmt.Println(i)
-	var i int
-	for pos, node := range scores {
-		if node == n {
-			i = pos
-			break
+// removeFromScores removes n from the nodeScoreList scores.
+func removeFromScores(scores nodeScoreList, n *Node) nodeScoreList {
+	sort.Sort(scores)
+	i := sort.Search(len(scores), func(i int) bool {
+		return scores[i].Score >= n.Score
+	})
+
+	if i < len(scores) && scores[i] != n {
+		fmt.Println("node not found, performing linear search")
+		for pos, node := range scores {
+			if node == n {
+				i = pos
+				break
+			}
 		}
 	}
 
 	newScoreList := make(nodeScoreList, len(scores)-1)
 
 	fmt.Printf("removing %v, found %v\n", n.Value, scores[i].Value)
+
 	if i == len(scores) {
 		// If the index is at the tail,
 		// we just exclude the last element.
@@ -408,7 +412,7 @@ func updateScores(scores nodeScoreList, n *Node) nodeScoreList {
 
 	} else {
 		copy(newScoreList, scores[:i])
-		copy(newScoreList, scores[i+1:])
+		copy(newScoreList[i:], scores[i+1:])
 	}
 
 	return newScoreList
