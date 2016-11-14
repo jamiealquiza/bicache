@@ -84,4 +84,4 @@ a string
 ```
 
 # Misc.
-![img](https://raw.githubusercontent.com/jamiealquiza/catpics/master/bicache.jpg)
+[Diagram](https://raw.githubusercontent.com/jamiealquiza/catpics/master/bicache.jpg)
