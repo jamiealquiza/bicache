@@ -163,7 +163,7 @@ func (b *Bicache) PromoteEvict() {
 	fmt.Println()
 
 	// How far over MRU capacity are we?
-	mruOverflow := int(b.mruCache.Len()-b.mruCap)
+	mruOverflow := int(b.mruCache.Len() - b.mruCap)
 	if mruOverflow <= 0 {
 		return
 	}
@@ -179,7 +179,7 @@ func (b *Bicache) PromoteEvict() {
 	sort.Sort(sort.Reverse(mruToPromoteEvict))
 
 	// Check MFU capacity.
-	mfuFree := int(b.mfuCap-b.mfuCache.Len())
+	mfuFree := int(b.mfuCap - b.mfuCache.Len())
 	if mfuFree < 0 {
 		mfuFree = 0
 	}
@@ -228,7 +228,7 @@ promoteByScore:
 
 	// Get a remainder to either promote by score
 	// to the MFU or ultimately evict from the MRU.
-	mruOverflow-=canPromote
+	mruOverflow -= canPromote
 	remainderPosition := canPromote
 	fmt.Printf("mru overflow remainder: %d\n", mruOverflow)
 
@@ -260,31 +260,6 @@ promoteByScore:
 
 	// Otherwise, scan for a replacement.
 	for _, n := range mruToPromoteEvict[remainderPosition:] {
-		/*fmt.Println("[bottomMfu]")
-		for _, b := range bottomMfu {
-			fmt.Printf("%d:%d -> ", b.Value.([2]interface{})[0], b.Score)
-		}
-		fmt.Printf("\n\n")*/
-		// TODO needs another pass. Want to avoid equal scores
-		// causing a replacement so we don't keep bouncing the same
-		// entries between the MRU/MFU.
-		/*
-		i := sort.Search(len(bottomMfu)-1, func(i int) bool {
-			return bottomMfu[i].Score < n.Score
-		})
-
-		if i != -1 {
-			node := bottomMfu[i]
-			fmt.Printf("moving %v to mru\n", node.Value.([2]interface{})[0])
-			newNode := b.mruCache.PushHead(node.Value)
-			newNode.Score = node.Score
-			b.cacheMap[node.Value.([2]interface{})[0]].state = 0
-			b.cacheMap[node.Value.([2]interface{})[0]].node = newNode
-			b.mfuCache.Remove(node)
-			promotedByScore++
-		}
-		*/
-
 		for _, node := range bottomMfu {
 			if n.Score > node.Score {
 				fmt.Printf("moving %v to mru\n", node.Value.([2]interface{})[0])
@@ -303,7 +278,7 @@ promoteByScore:
 	// the the count of MFU moved to the MRU.
 evictFromMruTail:
 	// What's our remainder count?
-	toEvict := mruOverflow-promotedByScore
+	toEvict := mruOverflow - promotedByScore
 	// Evict this many from the MRU tail.
 	for i := 0; i < toEvict; i++ {
 		node := b.mruCache.Tail()
