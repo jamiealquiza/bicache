@@ -144,5 +144,9 @@ func main() {
 		}
 	}
 
+	fmt.Printf("\n\n[ read score list ]\n")
+	for _, n := range s.HighScores(int(s.Len())) {
+		fmt.Printf("%s ", n.Read())
+	}
 	fmt.Println()
 }
