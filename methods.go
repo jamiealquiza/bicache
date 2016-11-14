@@ -35,7 +35,7 @@ func (b *Bicache) Set(k, v interface{}) {
 		}
 	} else {
 		// Create at the MRU tail.
-		newNode := b.mruCache.PushTail([2]interface{}{k, v})
+		newNode := b.mruCache.PushHead([2]interface{}{k, v})
 		b.cacheMap[k] = &entry{
 			node:  newNode,
 			state: 0,
