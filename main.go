@@ -219,6 +219,8 @@ promoteByScore:
 	}
 
 	// Otherwise, scan for a replacement.
+	// Have an outstanding bug in the binary search;
+	// to be resolved in issue #7.
 	for _, n := range mruToPromoteEvict[remainderPosition:] {
 		for _, node := range bottomMfu {
 			if n.Score > node.Score {
