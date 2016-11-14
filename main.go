@@ -22,7 +22,6 @@
 package bicache
 
 import (
-	"fmt"
 	"sort"
 	"sync"
 	"time"
@@ -130,45 +129,11 @@ func (b *Bicache) PromoteEvict() {
 	b.Lock()
 	defer b.Unlock()
 
-	/*
-		start := b.mruCache.Tail()
-		fmt.Println("[mru]")
-		for {
-			if start == nil {
-				break
-			}
-			fmt.Printf("%d:%d -> ", start.Value.([2]interface{})[0], start.Score)
-			if start.Next != nil {
-				start = start.Next
-			} else {
-				break
-			}
-		}
-		fmt.Println()
-		start = b.mfuCache.Tail()
-		fmt.Println("[mfu]")
-		for {
-			if start == nil {
-				break
-			}
-			fmt.Printf("%d:%d -> ", start.Value.([2]interface{})[0], start.Score)
-			if start.Next != nil {
-				start = start.Next
-			} else {
-				break
-			}
-		}
-		fmt.Println()
-		fmt.Println()
-	*/
-
 	// How far over MRU capacity are we?
 	mruOverflow := int(b.mruCache.Len() - b.mruCap)
 	if mruOverflow <= 0 {
 		return
 	}
-
-	//fmt.Printf("MRU Overflow: %d\n", mruOverflow) // xxx
 
 	// Get the top n MRU elements
 	// where n = MRU capacity overflow.
@@ -204,9 +169,8 @@ func (b *Bicache) PromoteEvict() {
 	// using free slots.
 	if canPromote > 0 {
 		for _, node := range mruToPromoteEvict[:canPromote] {
-			//fmt.Printf("Promoting %d to MFU\n", node.Value.([2]interface{})[0])
 			// We have to do this because
-			// performing a Remove and PushToTail
+			// performing a Remove and PushTailNode
 			// with the same node is difficult.
 			newNode := b.mfuCache.PushTail(node.Value)
 			newNode.Score = node.Score
@@ -251,7 +215,6 @@ promoteByScore:
 	// rest would fail. Need to add an additional short circuit
 	// assuming we enter the promote by score routine.
 	if bottomMfu[0].Score >= mruToPromoteEvict[remainderPosition].Score {
-		fmt.Println("Max MRU < Min Mfu")
 		goto evictFromMruTail
 	}
 
@@ -259,7 +222,6 @@ promoteByScore:
 	for _, n := range mruToPromoteEvict[remainderPosition:] {
 		for _, node := range bottomMfu {
 			if n.Score > node.Score {
-				//fmt.Printf("moving %v to mru\n", node.Value.([2]interface{})[0])
 				// Create a new node at the MRU head,
 				// then copy the evicted MFU node over.
 				newMRUNode := b.mruCache.PushHead(node.Value)
@@ -282,12 +244,11 @@ promoteByScore:
 	}
 
 evictFromMruTail:
-	// What's our remainder count?
+	// What's our overflow remainder count?
 	toEvict := mruOverflow - promotedByScore
 	// Evict this many from the MRU tail.
 	for i := 0; i < toEvict; i++ {
 		node := b.mruCache.Tail()
-		//fmt.Printf("Evicting from MRU tail %v\n", node.Value)
 		delete(b.cacheMap, node.Value.([2]interface{})[0])
 		b.mruCache.RemoveTail()
 	}

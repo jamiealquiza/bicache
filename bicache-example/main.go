@@ -11,12 +11,12 @@ import (
 
 func main() {
 	c := bicache.New(&bicache.Config{
-		MfuSize:   20000,
-		MruSize:   20000,
+		MfuSize:   500,
+		MruSize:   500,
 		AutoEvict: 1000,
 	})
 
-	keys := 25000
+	keys := 10000
 
 	t := tachymeter.New(&tachymeter.Config{Size: keys})
 	fmt.Printf("[ Set %d keys ]\n", keys)
@@ -44,11 +44,7 @@ func main() {
 	c.Get(2)
 	c.Get(2)
 
-	time.Sleep(990 * time.Millisecond)
-
-	c.Set(13, 13)
-
-	//time.Sleep(5 * time.Second)
+	time.Sleep(3 * time.Second)
 
 	t.Reset()
 	fmt.Printf("[ Get %d keys ]\n", keys)
