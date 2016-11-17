@@ -26,7 +26,7 @@ Increments key score by 1.
 Moves key to head of MRU cache.
 
 ### Delete
-`Del(key` -> removes key from cache
+`Del(key)` -> removes key from cache
 
 # Example
 
