@@ -135,6 +135,9 @@ func (b *Bicache) PromoteEvict() {
 		return
 	}
 
+	// TODO If MFU cap is 0, shortcut to
+	// LRU-only behavior.
+
 	// Get the top n MRU elements
 	// where n = MRU capacity overflow.
 	mruToPromoteEvict := b.mruCache.HighScores(mruOverflow)
@@ -169,9 +172,8 @@ func (b *Bicache) PromoteEvict() {
 	// using free slots.
 	if canPromote > 0 {
 		for _, node := range mruToPromoteEvict[:canPromote] {
-			// We have to do this because
-			// performing a Remove and PushTailNode
-			// with the same node is difficult.
+			// Create a new node at the tail of the MFU,
+			// copy values, update cacheMap state/reference.
 			newNode := b.mfuCache.PushTail(node.Value)
 			newNode.Score = node.Score
 			b.cacheMap[node.Value.([2]interface{})[0]].state = 1
@@ -244,6 +246,7 @@ promoteByScore:
 		}
 
 	}
+
 
 evictFromMruTail:
 	// What's our overflow remainder count?
