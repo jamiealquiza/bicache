@@ -1,9 +1,9 @@
 [![GoDoc](https://godoc.org/github.com/jamiealquiza/bicache?status.svg)](https://godoc.org/github.com/jamiealquiza/bicache)
 
 # bicache
-Bicache is a hybrid MFU/MRU cache for Go. It provides a size configurable (in key count [and eventually data size]) two-tier cache, with least-frequently (based on `Get` operations) and least-recently used replacement policies (functionally MFU and MRU, respectively). A shared lookup table is used, limiting read operations to a max of one cache miss with two tiers of cache. Bicache allows MRU to MFU promotions and overflow evictions at write time or on automatic interval as a background task.
+Bicache is a hybrid MFU/MRU cache for Go. It provides a size configurable (in key count [and eventually data size]) two-tier cache, with least-frequently (based on `Get` operations) and least-recently used replacement policies (functionally MFU and MRU, respectively). A shared lookup table is used, limiting read ops to a max of one cache miss over two tiers of cache. Bicache allows MRU to MFU promotions and overflow evictions at write time or on automatic interval as a background task.
 
-Bicached averages roughly p95 single-digit microsecond Sets and 500 nanosecond Gets at 100,000 keys on modern hardware (assuming automatic promotion/eviction is configured and not running; this impact can vary greatly depending on configuration).
+Bicached averages roughly p95 single-digit microsecond Sets and 500 nanosecond Gets at 100,000 keys on modern hardware (assuming a promotion/eviction is not running; the impact can vary greatly depending on configuration).
 
 # Installation
 Test with Go 1.7.
