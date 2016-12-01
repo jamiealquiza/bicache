@@ -1,7 +1,6 @@
 package sll
 
 import (
-	//"fmt"
 	"sort"
 	"sync"
 )
@@ -81,9 +80,7 @@ func (ll *Sll) Tail() *Node {
 // HighScores takes an integer and returns the
 // respective number of *Nodes with the higest scores
 // sorted in ascending order. The last element will
-// be the node with the highest score. Calling HighScores
-// locks the *Sll for the duration of a binary sort
-// of roughly O(log ll.Len()) time.
+// be the node with the highest score.
 func (ll *Sll) HighScores(r int) nodeScoreList {
 	ll.Lock()
 	defer ll.Unlock()
@@ -107,9 +104,7 @@ func (ll *Sll) HighScores(r int) nodeScoreList {
 // LowScores takes an integer and returns the
 // respective number of *Nodes with the lowest scores
 // sorted in ascending order. The first element will
-// be the node with the lowest score. Calling LowScores
-// locks the *Sll for the duration of a binary sort
-// of roughly O(log ll.Len()) time.
+// be the node with the lowest score.
 func (ll *Sll) LowScores(r int) nodeScoreList {
 	ll.Lock()
 	defer ll.Unlock()
@@ -391,8 +386,9 @@ func removeFromScores(scores nodeScoreList, n *Node) nodeScoreList {
 		return scores[i].Score >= n.Score
 	})
 
+	// TODO the binary search implementation
+	// is broken and likely failed. Try a linear search.
 	if i < len(scores) && scores[i] != n {
-		//fmt.Println("node not found, performing linear search")
 		for pos, node := range scores {
 			if node == n {
 				i = pos
