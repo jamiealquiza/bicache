@@ -36,6 +36,11 @@ func main() {
 		"three",
 		"four",
 		"five",
+		"six",
+		"seven",
+		"eight",
+		"nine",
+		"ten",
 	}
 
 	fmt.Println("[ PushTail objects ]")
@@ -130,7 +135,7 @@ func main() {
 		}
 	}
 
-	fmt.Printf("\n\n[ remove middle node ]\n")
+	fmt.Printf("\n\n[ remove second from last node ]\n")
 	node = s.Tail().Next
 	s.Remove(node)
 
