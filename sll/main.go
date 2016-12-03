@@ -381,25 +381,55 @@ func (ll *Sll) PushTailNode(n *Node) {
 
 // removeFromScores removes n from the nodeScoreList scores.
 func removeFromScores(scores nodeScoreList, n *Node) nodeScoreList {
-	sort.Sort(scores)
-	i := sort.Search(len(scores), func(i int) bool {
-		return scores[i].Score >= n.Score
-	})
+	// Binary search was demonstrating
+	// incredible latencies (even excluding sort time).
+	// Disabled in favor of an unrolled linear search for now.
+	var i int
+	/*
+		sort.Sort(scores)
+		i = sort.Search(len(scores), func(i int) bool {
+			return scores[i].Score >= n.Score
+		})
+	*/
 
-	// TODO the binary search implementation
-	// is broken and likely failed. Try a linear search.
-	if i < len(scores) && scores[i] != n {
-		for pos, node := range scores {
-			if node == n {
-				i = pos
-				break
-			}
+	// Binary search doesn't work when all values (scores)
+	// are the same, even though the node is certain to exist.
+	// In this case, we need to fallback to a linear search.
+	//if i == len(scores) || scores[i] != n {
+
+	// Unrolling with 5 elements
+	// has cut CPU-cached small element
+	// slice search times in half. Needs further
+	// testing though.
+	// Also, this will cause an out of bounds
+	// crash if the element we're searching for
+	// somehow doesn't exist (as a result of some
+	// other bug).
+	for p := 0; p < len(scores); p += 5 {
+		if scores[p] == n {
+			i = p
+			break
+		}
+		if scores[p+1] == n {
+			i = p + 1
+			break
+		}
+		if scores[p+2] == n {
+			i = p + 2
+			break
+		}
+		if scores[p+3] == n {
+			i = p + 3
+			break
+		}
+		if scores[p+4] == n {
+			i = p + 4
+			break
 		}
 	}
+	//}
 
 	newScoreList := make(nodeScoreList, len(scores)-1)
-
-	//fmt.Printf("removing %v, found %v\n", n.Value, scores[i].Value)
 
 	if i == len(scores) {
 		// If the index is at the tail,
