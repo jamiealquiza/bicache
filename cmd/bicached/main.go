@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
 	"net"
@@ -12,12 +13,16 @@ import (
 	"github.com/jamiealquiza/bicache"
 )
 
+// Request holds an API request
+// command and parameters.
 type Request struct {
 	command string
 	params  string
 }
 
 var (
+	// Commands is a map of valid API requests
+	// to internal functions.
 	commands = map[string]func(c *bicache.Bicache, r *Request) string{
 		"get": get,
 		"set": set,
@@ -26,15 +31,23 @@ var (
 )
 
 func main() {
-	address := "localhost:9090"
+	// Initialize settings.
+	var address = flag.String("listen", "localhost:9090", "listen address")
+	var mfuSize = flag.Uint("mfu", 256, "MFU cache size")
+	var mruSize = flag.Uint("mru", 64, "MRU cache size")
+	var evictInterval = flag.Uint("evict-interval", 1000, "Eviction interval in ms")
+	var evictLog = flag.Bool("evict-log", true, "log eviction times")
+	flag.Parse()
 
+	// Instantiate Bicache.
 	cache := bicache.New(&bicache.Config{
-		MfuSize:   10,
-		MruSize:   10,
-		AutoEvict: 1000,
-		EvictLog:  true,
+		MfuSize:   *mfuSize,
+		MruSize:   *mruSize,
+		AutoEvict: *evictInterval,
+		EvictLog:  *evictLog,
 	})
 
+	// Log Bicache stats on interval.
 	go func(c *bicache.Bicache) {
 		interval := time.NewTicker(time.Second * 5)
 		defer interval.Stop()
@@ -46,24 +59,29 @@ func main() {
 		}
 	}(cache)
 
-	log.Printf("Bicached started: %s\n", address)
-
-	server, err := net.Listen("tcp", address)
+	// Setup the TCP listener.
+	server, err := net.Listen("tcp", *address)
 	if err != nil {
-		log.Fatalf("Listener error: %s\n", err)
+		log.Fatalln(err)
 	}
 	defer server.Close()
 
+	log.Printf("Bicached Listening: %s\n", *address)
+
+	// Request listener loop.
 	for {
 		conn, err := server.Accept()
 		if err != nil {
-			log.Printf("API error: %s\n", err)
+			log.Printf("req error: %s\n", err)
 			continue
 		}
 		reqHandler(cache, conn)
 	}
 }
 
+// Request handler takes API requests
+// and passes them to the appropriate bicache
+// method.
 func reqHandler(c *bicache.Bicache, conn net.Conn) {
 	defer conn.Close()
 	reader := bufio.NewReader(conn)
@@ -89,6 +107,7 @@ func reqHandler(c *bicache.Bicache, conn net.Conn) {
 	}
 }
 
+// Bicache Get method.
 func get(c *bicache.Bicache, r *Request) string {
 	v := c.Get(r.params)
 	if v != nil {
@@ -98,6 +117,7 @@ func get(c *bicache.Bicache, r *Request) string {
 	return "nil\n"
 }
 
+// Bicache Set method.
 func set(c *bicache.Bicache, r *Request) string {
 	parts := strings.Split(r.params, ":")
 	k, v := parts[0], parts[1]
@@ -106,6 +126,7 @@ func set(c *bicache.Bicache, r *Request) string {
 	return "ok\n"
 }
 
+// Bicache Del method.
 func del(c *bicache.Bicache, r *Request) string {
 	c.Del(r.params)
 
