@@ -22,6 +22,7 @@
 package bicache
 
 import (
+	"log"
 	"sort"
 	"sync"
 	"time"
@@ -60,6 +61,7 @@ type Config struct {
 	MfuSize   uint
 	MruSize   uint
 	AutoEvict uint
+	EvictLog  bool
 }
 
 // Entry is a container type for scored
@@ -91,6 +93,7 @@ func New(c *Config) *Bicache {
 		mruCap:   c.MruSize,
 	}
 
+	var start time.Time
 	if c.AutoEvict > 0 {
 		cache.autoEvict = true
 		go func(b *Bicache) {
@@ -98,7 +101,15 @@ func New(c *Config) *Bicache {
 			defer interval.Stop()
 
 			for _ = range interval.C {
+				if c.EvictLog {
+					start = time.Now()
+				}
+
 				b.PromoteEvict()
+
+				if c.EvictLog {
+					log.Printf("AutoEvict ran in %s\n", time.Since(start))
+				}
 			}
 		}(cache)
 	}
@@ -246,7 +257,6 @@ promoteByScore:
 		}
 
 	}
-
 
 evictFromMruTail:
 	// What's our overflow remainder count?

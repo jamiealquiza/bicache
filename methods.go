@@ -63,8 +63,8 @@ func (b *Bicache) Get(k interface{}) interface{} {
 	return nil
 }
 
-// Delete deletes a key.
-func (b *Bicache) Delete(k interface{}) {
+// Del deletes a key.
+func (b *Bicache) Del(k interface{}) {
 	b.Lock()
 	defer b.Unlock()
 
