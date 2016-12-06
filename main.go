@@ -102,6 +102,9 @@ func New(c *Config) *Bicache {
 	}
 
 	var start time.Time
+	// Initialize a background goroutine
+	// for handling promotions and evictions,
+	// if configured.
 	if c.AutoEvict > 0 {
 		cache.autoEvict = true
 		go func(b *Bicache) {
