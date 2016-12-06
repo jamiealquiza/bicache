@@ -89,6 +89,7 @@ func reqHandler(c *bicache.Bicache, conn net.Conn) {
 	buf, err := reader.ReadBytes('\n')
 	if err != nil {
 		log.Printf("req error: %s\n", err)
+		return
 	}
 
 	input := strings.Fields(string(buf[:len(buf)-1]))
