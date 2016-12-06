@@ -88,7 +88,8 @@ func reqHandler(c *bicache.Bicache, conn net.Conn) {
 
 	buf, err := reader.ReadBytes('\n')
 	if err != nil {
-		log.Printf("req error: %s\n", err)
+		// TODO might want an explicit
+		// action here.
 		return
 	}
 
