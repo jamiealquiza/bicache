@@ -21,6 +21,14 @@
 // THE SOFTWARE.
 package bicache
 
+// Bicache is storing a [2]interface{}
+// as the underlying sll node's value.
+// Position 0 is the node's key and position
+// 1 is the value. This is done so that
+// the node a node can be looked up in the
+// cache map if the key would otherwise be
+// unknown.
+
 // Set takes a key and value and creates
 // and entry in the MRU cache. If the key
 // already exists, the value is updated.
@@ -29,16 +37,14 @@ func (b *Bicache) Set(k, v interface{}) {
 	// If the entry exists, update. If not,
 	// create at the tail of the MRU cache.
 	if n, exists := b.cacheMap[k]; exists {
-		n.node.Value = [2]interface{}{k, v}
+		n.node.Value.(*cacheData).v = v
 		if n.state == 0 {
 			b.mruCache.MoveToHead(n.node)
 		}
 	} else {
 		// Create at the MRU tail.
-		newNode := b.mruCache.PushHead([2]interface{}{k, v})
 		b.cacheMap[k] = &entry{
-			node:  newNode,
-			state: 0,
+			node: b.mruCache.PushHead(&cacheData{k: k, v: v}),
 		}
 	}
 
@@ -59,7 +65,7 @@ func (b *Bicache) Get(k interface{}) interface{} {
 
 	if n, exists := b.cacheMap[k]; exists {
 		read := n.node.Read()
-		return read.([2]interface{})[1]
+		return read.(*cacheData).v
 	}
 
 	return nil

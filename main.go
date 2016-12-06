@@ -73,6 +73,14 @@ type entry struct {
 	state uint8 // 0 = MRU, 1 = MFU
 }
 
+// cacheData is the data container
+// stored in the underlying sll.Node's
+// value.
+type cacheData struct {
+	k interface{}
+	v interface{}
+}
+
 // Stats holds Bicache
 // statistics data.
 type Stats struct {
@@ -187,8 +195,11 @@ func (b *Bicache) PromoteEvict() {
 			// copy values, update cacheMap state/reference.
 			newNode := b.mfuCache.PushTail(node.Value)
 			newNode.Score = node.Score
-			b.cacheMap[node.Value.([2]interface{})[0]].state = 1
-			b.cacheMap[node.Value.([2]interface{})[0]].node = newNode
+			// The original key is stored in the cacheData.key
+			// field as the node's Value. This allows a reverse
+			// lookup of a cacheMap entry by node.
+			b.cacheMap[node.Value.(*cacheData).k].state = 1
+			b.cacheMap[node.Value.(*cacheData).k].node = newNode
 			b.mruCache.Remove(node)
 		}
 
@@ -239,15 +250,15 @@ promoteByScore:
 				// then copy the evicted MFU node over.
 				newMRUNode := b.mruCache.PushHead(mfuNode.Value)
 				newMRUNode.Score = mfuNode.Score
-				b.cacheMap[mfuNode.Value.([2]interface{})[0]].state = 0
-				b.cacheMap[mfuNode.Value.([2]interface{})[0]].node = newMRUNode
+				b.cacheMap[mfuNode.Value.(*cacheData).k].state = 0
+				b.cacheMap[mfuNode.Value.(*cacheData).k].node = newMRUNode
 				b.mfuCache.Remove(mfuNode)
 
 				// Promote the MRU node to the MFU.
 				newMFUNode := b.mfuCache.PushTail(mruNode.Value)
 				newMFUNode.Score = mruNode.Score
-				b.cacheMap[mruNode.Value.([2]interface{})[0]].state = 1
-				b.cacheMap[mruNode.Value.([2]interface{})[0]].node = newMFUNode
+				b.cacheMap[mruNode.Value.(*cacheData).k].state = 1
+				b.cacheMap[mruNode.Value.(*cacheData).k].node = newMFUNode
 				b.mruCache.Remove(mruNode)
 
 				promotedByScore++
@@ -267,7 +278,7 @@ evictFromMruTail:
 	// Evict this many from the MRU tail.
 	for i := 0; i < toEvict; i++ {
 		node := b.mruCache.Tail()
-		delete(b.cacheMap, node.Value.([2]interface{})[0])
+		delete(b.cacheMap, node.Value.(*cacheData).k)
 		b.mruCache.RemoveTail()
 	}
 
