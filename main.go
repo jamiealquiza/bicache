@@ -232,23 +232,23 @@ promoteByScore:
 	}
 
 	// Otherwise, scan for a replacement.
-	for _, n := range mruToPromoteEvict[remainderPosition:] {
-		for i, node := range bottomMfu {
-			if n.Score > node.Score {
+	for _, mruNode := range mruToPromoteEvict[remainderPosition:] {
+		for i, mfuNode := range bottomMfu {
+			if mruNode.Score > mfuNode.Score {
 				// Create a new node at the MRU head,
 				// then copy the evicted MFU node over.
-				newMRUNode := b.mruCache.PushHead(node.Value)
-				newMRUNode.Score = node.Score
-				b.cacheMap[node.Value.([2]interface{})[0]].state = 0
-				b.cacheMap[node.Value.([2]interface{})[0]].node = newMRUNode
-				b.mfuCache.Remove(node)
+				newMRUNode := b.mruCache.PushHead(mfuNode.Value)
+				newMRUNode.Score = mfuNode.Score
+				b.cacheMap[mfuNode.Value.([2]interface{})[0]].state = 0
+				b.cacheMap[mfuNode.Value.([2]interface{})[0]].node = newMRUNode
+				b.mfuCache.Remove(mfuNode)
 
 				// Promote the MRU node to the MFU.
-				newMFUNode := b.mfuCache.PushTail(n.Value)
-				newMFUNode.Score = n.Score
-				b.cacheMap[node.Value.([2]interface{})[0]].state = 1
-				b.cacheMap[node.Value.([2]interface{})[0]].node = newMFUNode
-				b.mruCache.Remove(n)
+				newMFUNode := b.mfuCache.PushTail(mruNode.Value)
+				newMFUNode.Score = mruNode.Score
+				b.cacheMap[mruNode.Value.([2]interface{})[0]].state = 1
+				b.cacheMap[mruNode.Value.([2]interface{})[0]].node = newMFUNode
+				b.mruCache.Remove(mruNode)
 
 				promotedByScore++
 
