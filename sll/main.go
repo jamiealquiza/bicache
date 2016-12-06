@@ -3,6 +3,7 @@ package sll
 import (
 	"sort"
 	"sync"
+	"sync/atomic"
 )
 
 // Sll is a scored linked list.
@@ -36,9 +37,7 @@ type nodeScoreList []*Node
 
 // Read returns a *Node Value and increments the score.
 func (n *Node) Read() interface{} {
-	n.Lock()
-	defer n.Unlock()
-	n.Score++
+	atomic.AddUint64(&n.Score, 1)
 	return n.Value
 }
 
@@ -49,7 +48,7 @@ func (nsl nodeScoreList) Len() int {
 }
 
 func (nsl nodeScoreList) Less(i, j int) bool {
-	return nsl[i].Score < nsl[j].Score
+	return atomic.LoadUint64(&nsl[i].Score) < atomic.LoadUint64(&nsl[j].Score)
 }
 
 func (nsl nodeScoreList) Swap(i, j int) {
@@ -118,8 +117,10 @@ func (ll *Sll) LowScores(r int) nodeScoreList {
 		copy(scores, ll.scores)
 		return scores
 	}
+
 	scores := make(nodeScoreList, r)
 	copy(scores, ll.scores[:r])
+
 	return scores
 }
 
