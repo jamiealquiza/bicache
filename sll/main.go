@@ -130,7 +130,8 @@ func (ll *Sll) MoveToHead(n *Node) {
 	ll.Lock()
 	defer ll.Unlock()
 
-	// Short-circuit.
+	// Short-circuit if this
+	// is already the head.
 	if ll.head == n {
 		return
 	}
@@ -139,6 +140,12 @@ func (ll *Sll) MoveToHead(n *Node) {
 	// assign a new tail.
 	if ll.tail == n {
 		ll.tail = n.Next
+		ll.tail.Prev = nil
+	} else {
+		// This is neither the current
+		// head nor tail. Link the next &
+		// prev nodes.
+		n.Next.Prev, n.Prev.Next = n.Prev, n.Next
 	}
 
 	// Set current head Next to n.
@@ -158,7 +165,8 @@ func (ll *Sll) MoveToTail(n *Node) {
 	ll.Lock()
 	defer ll.Unlock()
 
-	// Short-circuit.
+	// Short-circuit if this
+	// is already the tail.
 	if ll.tail == n {
 		return
 	}
@@ -167,6 +175,12 @@ func (ll *Sll) MoveToTail(n *Node) {
 	// assign a new head.
 	if ll.head == n {
 		ll.head = n.Prev
+		ll.head.Next = nil
+	} else {
+		// This is neither the current
+		// head nor tail. Link the next &
+		// prev nodes.
+		n.Next.Prev, n.Prev.Next = n.Prev, n.Next
 	}
 
 	// Set current tail Prev to n.
@@ -248,8 +262,6 @@ func (ll *Sll) Remove(n *Node) {
 	// If this is a single element list.
 	if ll.head == n && ll.tail == n {
 		ll.head, ll.tail = nil, nil
-		// These should already be nil:
-		n.Next, n.Prev = nil, nil
 		goto updatescores
 	}
 
@@ -272,8 +284,7 @@ func (ll *Sll) Remove(n *Node) {
 	// TODO these used to have
 	// if !nil checks; making it here
 	// with nil should be considered a bug.
-	n.Next.Prev = n.Prev
-	n.Prev.Next = n.Next
+	n.Next.Prev, n.Prev.Next = n.Prev, n.Next
 
 updatescores:
 	// Remove references.
