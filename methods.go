@@ -44,6 +44,8 @@ func (b *Bicache) Set(k, v interface{}) {
 
 	b.Unlock()
 
+	// PromoteEvict on write if it's
+	// not being handled automatically.
 	if !b.autoEvict {
 		b.PromoteEvict()
 	}
