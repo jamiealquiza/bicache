@@ -251,17 +251,17 @@ promoteByScore:
 			if mruNode.Score > mfuNode.Score {
 				// Create a new node at the MRU head,
 				// then copy the evicted MFU node over.
-				newMRUNode := b.mruCache.PushHead(mfuNode.Value)
-				newMRUNode.Score = mfuNode.Score
+				newMruNode := b.mruCache.PushHead(mfuNode.Value)
+				newMruNode.Score = mfuNode.Score
 				b.cacheMap[mfuNode.Value.(*cacheData).k].state = 0
-				b.cacheMap[mfuNode.Value.(*cacheData).k].node = newMRUNode
+				b.cacheMap[mfuNode.Value.(*cacheData).k].node = newMruNode
 				b.mfuCache.Remove(mfuNode)
 
 				// Promote the MRU node to the MFU.
-				newMFUNode := b.mfuCache.PushTail(mruNode.Value)
-				newMFUNode.Score = mruNode.Score
+				newMfuNode := b.mfuCache.PushTail(mruNode.Value)
+				newMfuNode.Score = mruNode.Score
 				b.cacheMap[mruNode.Value.(*cacheData).k].state = 1
-				b.cacheMap[mruNode.Value.(*cacheData).k].node = newMFUNode
+				b.cacheMap[mruNode.Value.(*cacheData).k].node = newMfuNode
 				b.mruCache.Remove(mruNode)
 
 				promotedByScore++
