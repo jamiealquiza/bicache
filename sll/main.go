@@ -397,27 +397,19 @@ func removeFromScores(scores nodeScoreList, n *Node) nodeScoreList {
 	// Binary search was demonstrating
 	// incredible latencies (even excluding sort time).
 	// Disabled in favor of an unrolled linear search for now.
-	var i int
-	/*
-		sort.Sort(scores)
-		i = sort.Search(len(scores), func(i int) bool {
-			return scores[i].Score >= n.Score
-		})
-	*/
 
-	// Binary search doesn't work when all values (scores)
+	// Binary search also doesn't work when all values (scores)
 	// are the same, even though the node is certain to exist.
-	// In this case, we need to fallback to a linear search.
-	//if i == len(scores) || scores[i] != n {
 
 	// Unrolling with 5 elements
 	// has cut CPU-cached small element
 	// slice search times in half. Needs further
 	// testing though.
-	// Also, this will cause an out of bounds
+	// This will cause an out of bounds
 	// crash if the element we're searching for
 	// somehow doesn't exist (as a result of some
 	// other bug).
+	var i int
 	for p := 0; p < len(scores); p += 5 {
 		if scores[p] == n {
 			i = p
@@ -440,9 +432,6 @@ func removeFromScores(scores nodeScoreList, n *Node) nodeScoreList {
 			break
 		}
 	}
-	//}
-
-	// xxx - check if it's actuall being removed.
 
 	newScoreList := make(nodeScoreList, len(scores)-1)
 
