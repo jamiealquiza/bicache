@@ -28,6 +28,9 @@ Moves key to head of MRU cache.
 ### Del
 `Del(key)` -> removes key from cache
 
+### List
+`List(int)` -> returns the top n key names:state:score (state: 0 = MRU cache, 1 = MFU cache)
+
 # Example
 
 test.go:

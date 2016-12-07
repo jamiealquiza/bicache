@@ -2,11 +2,13 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
 	"net"
+	"strconv"
 	"strings"
 	"time"
 
@@ -24,9 +26,10 @@ var (
 	// Commands is a map of valid API requests
 	// to internal functions.
 	commands = map[string]func(c *bicache.Bicache, r *Request) string{
-		"get": get,
-		"set": set,
-		"del": del,
+		"get":  get,
+		"set":  set,
+		"del":  del,
+		"list": list,
 	}
 )
 
@@ -97,6 +100,8 @@ func reqHandler(c *bicache.Bicache, conn net.Conn) {
 	// the last element is a NL.
 	input := buf[:len(buf)-1]
 
+	// Find the position of the
+	// first space.
 	var p int
 	for n := range input {
 		if input[n] == 32 {
@@ -105,16 +110,22 @@ func reqHandler(c *bicache.Bicache, conn net.Conn) {
 		}
 	}
 
+	// If no space was found.
+	if p == 0 {
+		conn.Write([]byte("must specify command parameters"))
+		return
+	}
+
 	request := &Request{
 		command: string(input[:p]),
-		params: string(input[p+1:]),
+		params:  string(input[p+1:]),
 	}
 
 	if command, valid := commands[request.command]; valid {
 		response := command(c, request)
 		conn.Write([]byte(response))
 	} else {
-		m := fmt.Sprintf("not a command: %s\n", request.command)
+		m := fmt.Sprintf("non-existent command: %s\n", request.command)
 		conn.Write([]byte(m))
 	}
 }
@@ -144,4 +155,25 @@ func del(c *bicache.Bicache, r *Request) string {
 	c.Del(r.params)
 
 	return "ok\n"
+}
+
+// Bicache List method.
+func list(c *bicache.Bicache, r *Request) string {
+	limit, err := strconv.Atoi(r.params)
+	if err != nil {
+		return "list parameter must be an int\n"
+	}
+
+	lr := c.List(limit)
+
+	b := bytes.NewBuffer(nil)
+	for _, n := range lr {
+		_, err := b.WriteString(fmt.Sprintf("%v:%d:%d\n",
+			n.Key, n.State, n.Score))
+		if err != nil {
+			break
+		}
+	}
+
+	return string(b.Bytes())
 }

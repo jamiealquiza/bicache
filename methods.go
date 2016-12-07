@@ -21,6 +21,38 @@
 // THE SOFTWARE.
 package bicache
 
+import (
+	"sort"
+)
+
+// keyInfo holds a key name, state (0: MRU, 1: MRU)
+// and cache score.
+type KeyInfo struct {
+	Key   interface{}
+	State uint8
+	Score uint64
+}
+
+// listResults is a container that holds results from
+// from a List method (as keyInfo), allowing sorting of
+// available key names by score.
+type ListResults []*KeyInfo
+
+// listResults methods to satisfy the sort interface.
+
+func (lr ListResults) Len() int {
+	return len(lr)
+}
+
+func (lr ListResults) Less(i, j int) bool {
+	// Note operator set for desc. order.
+	return lr[i].Score > lr[j].Score
+}
+
+func (lr ListResults) Swap(i, j int) {
+	lr[i], lr[j] = lr[j], lr[i]
+}
+
 // Bicache is storing a [2]interface{}
 // as the underlying sll node's value.
 // Position 0 is the node's key and position
@@ -85,4 +117,34 @@ func (b *Bicache) Del(k interface{}) {
 			b.mfuCache.Remove(n.node)
 		}
 	}
+}
+
+// List returns all key names, states, and scores
+// sorted in descending order by score. Returns n
+// top restults.
+func (b *Bicache) List(n int) ListResults {
+	b.RLock()
+	defer b.RUnlock()
+
+	// Make a ListResults large enough to hold the
+	// number of cache items present in both cache tiers.
+	lr := make(ListResults, b.mruCache.Len()+b.mfuCache.Len())
+
+	var i int
+	for k, v := range b.cacheMap {
+		lr[i] = &KeyInfo{
+			Key:   k,
+			State: v.state,
+			Score: v.node.Score,
+		}
+		i++
+	}
+
+	sort.Sort(lr)
+
+	if n < len(lr) {
+		return lr[:n]
+	}
+
+	return lr
 }
