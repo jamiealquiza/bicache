@@ -2,13 +2,11 @@ package sll
 
 import (
 	"sort"
-	"sync"
 	"sync/atomic"
 )
 
 // Sll is a scored linked list.
 type Sll struct {
-	sync.RWMutex
 	head   *Node
 	tail   *Node
 	scores nodeScoreList
@@ -16,7 +14,6 @@ type Sll struct {
 
 // Node is a scored linked list node.
 type Node struct {
-	sync.Mutex
 	Value interface{}
 	Score uint64
 	Next  *Node
@@ -57,22 +54,16 @@ func (nsl nodeScoreList) Swap(i, j int) {
 
 // Len returns the count of nodes in the *Sll.
 func (ll *Sll) Len() uint {
-	ll.RLock()
-	defer ll.RUnlock()
 	return uint(len(ll.scores))
 }
 
 // Head returns the head *Node.
 func (ll *Sll) Head() *Node {
-	ll.RLock()
-	defer ll.RUnlock()
 	return ll.head
 }
 
 // Tail returns the head *Node.
 func (ll *Sll) Tail() *Node {
-	ll.RLock()
-	defer ll.RUnlock()
 	return ll.tail
 }
 
@@ -81,9 +72,6 @@ func (ll *Sll) Tail() *Node {
 // sorted in ascending order. The last element will
 // be the node with the highest score.
 func (ll *Sll) HighScores(r int) nodeScoreList {
-	ll.Lock()
-	defer ll.Unlock()
-
 	sort.Sort(ll.scores)
 	// Return what's available
 	// if more is being requested
@@ -105,9 +93,6 @@ func (ll *Sll) HighScores(r int) nodeScoreList {
 // sorted in ascending order. The first element will
 // be the node with the lowest score.
 func (ll *Sll) LowScores(r int) nodeScoreList {
-	ll.Lock()
-	defer ll.Unlock()
-
 	sort.Sort(ll.scores)
 	// Return what's available
 	// if more is being requested
@@ -127,9 +112,6 @@ func (ll *Sll) LowScores(r int) nodeScoreList {
 // MoveToHead takes a *Node and moves it
 // to the front of the *Sll.
 func (ll *Sll) MoveToHead(n *Node) {
-	ll.Lock()
-	defer ll.Unlock()
-
 	// Short-circuit if this
 	// is already the head.
 	if ll.head == n {
@@ -162,9 +144,6 @@ func (ll *Sll) MoveToHead(n *Node) {
 // MoveToTail takes a *Node and moves it
 // to the back of the *Sll.
 func (ll *Sll) MoveToTail(n *Node) {
-	ll.Lock()
-	defer ll.Unlock()
-
 	// Short-circuit if this
 	// is already the tail.
 	if ll.tail == n {
@@ -197,9 +176,6 @@ func (ll *Sll) MoveToTail(n *Node) {
 // PushHead creates a *Node with value v
 // at the head of the *Sll and returns a *Node.
 func (ll *Sll) PushHead(v interface{}) *Node {
-	ll.Lock()
-	defer ll.Unlock()
-
 	n := &Node{
 		Value: v,
 		Score: 0,
@@ -227,9 +203,6 @@ func (ll *Sll) PushHead(v interface{}) *Node {
 // PushTail creates a *Node with value v
 // at the tail of the *Sll and returns a *Node.
 func (ll *Sll) PushTail(v interface{}) *Node {
-	ll.Lock()
-	defer ll.Unlock()
-
 	n := &Node{
 		Value: v,
 		Score: 0,
@@ -256,9 +229,6 @@ func (ll *Sll) PushTail(v interface{}) *Node {
 
 // Remove removes a *Node from the *Sll.
 func (ll *Sll) Remove(n *Node) {
-	ll.Lock()
-	defer ll.Unlock()
-
 	// If this is a single element list.
 	if ll.head == ll.tail {
 		ll.head, ll.tail = nil, nil
@@ -296,9 +266,6 @@ updatescores:
 
 // RemoveHead removes the current *Sll.head.
 func (ll *Sll) RemoveHead() {
-	ll.Lock()
-	defer ll.Unlock()
-
 	if ll.head == nil {
 		return
 	}
@@ -317,9 +284,6 @@ func (ll *Sll) RemoveHead() {
 
 // RemoveTail removes the current *Sll.tail.s
 func (ll *Sll) RemoveTail() {
-	ll.Lock()
-	defer ll.Unlock()
-
 	if ll.tail == nil {
 		return
 	}
@@ -342,9 +306,6 @@ func (ll *Sll) RemoveTail() {
 // sets it as the head of the *Sll. The *Node
 // is also added to the score list.
 func (ll *Sll) PushHeadNode(n *Node) {
-	ll.Lock()
-	defer ll.Unlock()
-
 	ll.scores = append(ll.scores, n)
 
 	// Is this a new ll?
@@ -369,9 +330,6 @@ func (ll *Sll) PushHeadNode(n *Node) {
 // sets it as the tail of the *Sll. The *Node
 // is also added to the score list.
 func (ll *Sll) PushTailNode(n *Node) {
-	ll.Lock()
-	defer ll.Unlock()
-
 	ll.scores = append(ll.scores, n)
 
 	// Is this a new ll?
