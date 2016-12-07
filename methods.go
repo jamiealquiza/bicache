@@ -124,7 +124,6 @@ func (b *Bicache) Del(k interface{}) {
 // top restults.
 func (b *Bicache) List(n int) ListResults {
 	b.RLock()
-	defer b.RUnlock()
 
 	// Make a ListResults large enough to hold the
 	// number of cache items present in both cache tiers.
@@ -140,8 +139,11 @@ func (b *Bicache) List(n int) ListResults {
 		i++
 	}
 
-	sort.Sort(lr)
+	b.RUnlock()
 
+	sort.Sort(lr)
+	// return the number
+	// of items requested.
 	if n < len(lr) {
 		return lr[:n]
 	}
