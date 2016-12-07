@@ -268,7 +268,7 @@ promoteByScore:
 
 				// Remove the replaced MFU node from the
 				// bottomMfu list so it's not attempted twice.
-				bottomMfu = append(bottomMfu[:i], bottomMfu[i+i:]...)
+				bottomMfu = append(bottomMfu[:i], bottomMfu[i+1:]...)
 				break
 			}
 		}
