@@ -88,16 +88,26 @@ func reqHandler(c *bicache.Bicache, conn net.Conn) {
 
 	buf, err := reader.ReadBytes('\n')
 	if err != nil {
-		// TODO might want an explicit
-		// action here.
+		// TODO explicit action here.
 		return
 	}
 
-	input := strings.Fields(string(buf[:len(buf)-1]))
-	request := &Request{command: input[0]}
+	// Trim newline.
+	// TODO need an explicit check that
+	// the last element is a NL.
+	input := buf[:len(buf)-1]
 
-	if len(input) > 1 {
-		request.params = input[1]
+	var p int
+	for n := range input {
+		if input[n] == 32 {
+			p = n
+			break
+		}
+	}
+
+	request := &Request{
+		command: string(input[:p]),
+		params: string(input[p+1:]),
 	}
 
 	if command, valid := commands[request.command]; valid {
@@ -112,6 +122,7 @@ func reqHandler(c *bicache.Bicache, conn net.Conn) {
 // Bicache Get method.
 func get(c *bicache.Bicache, r *Request) string {
 	v := c.Get(r.params)
+
 	if v != nil {
 		return fmt.Sprintf("%s\n", v.(string))
 	}
