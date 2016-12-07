@@ -14,17 +14,20 @@ type Sll struct {
 
 // Node is a scored linked list node.
 type Node struct {
-	Value interface{}
-	Score uint64
 	Next  *Node
 	Prev  *Node
+	Score uint64
+	Value interface{}
 	// Might add a create field for TTL.
 }
 
-// New creates a new *Sll
-func New() *Sll {
+// New creates a new *Sll. New takes an
+// integer length to pre-allocate a nodeScoreList
+// of capacity l. This reduces append latencies if
+// many elements are inserted into a new list.
+func New(l int) *Sll {
 	return &Sll{
-		scores: nodeScoreList{},
+		scores: make(nodeScoreList, 0, l),
 	}
 }
 

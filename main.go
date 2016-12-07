@@ -95,8 +95,8 @@ type Stats struct {
 func New(c *Config) *Bicache {
 	cache := &Bicache{
 		cacheMap: make(map[interface{}]*entry),
-		mfuCache: sll.New(),
-		mruCache: sll.New(),
+		mfuCache: sll.New(int(c.MfuSize)),
+		mruCache: sll.New(int(c.MruSize)),
 		mfuCap:   c.MfuSize,
 		mruCap:   c.MruSize,
 	}
