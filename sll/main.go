@@ -260,12 +260,13 @@ func (ll *Sll) Remove(n *Node) {
 	defer ll.Unlock()
 
 	// If this is a single element list.
-	if ll.head == n && ll.tail == n {
+	if ll.head == ll.tail {
 		ll.head, ll.tail = nil, nil
 		goto updatescores
 	}
 
 	// Check if this node is the head/tail.
+
 	// If head, promote prev to head.
 	if ll.head == n {
 		ll.head = n.Prev
@@ -441,9 +442,11 @@ func removeFromScores(scores nodeScoreList, n *Node) nodeScoreList {
 	}
 	//}
 
+	// xxx - check if it's actuall being removed.
+
 	newScoreList := make(nodeScoreList, len(scores)-1)
 
-	if i == len(scores) {
+	if i == len(scores)-1 {
 		// If the index is at the tail,
 		// we just exclude the last element.
 		copy(newScoreList, scores)
