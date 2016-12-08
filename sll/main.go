@@ -136,10 +136,10 @@ func (ll *Sll) LowScores(r int) nodeScoreList {
 // insertAt inserts node n
 // at position at in the *Sll.
 func insertAt(n, at *Node) {
+	n.next = at.next
 	at.next = n
 	n.prev = at
-	n.next = at.next
-	n.pext.prev = n
+	n.next.prev = n
 }
 
 // pull removes a *Node from
