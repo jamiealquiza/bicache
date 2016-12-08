@@ -7,18 +7,34 @@ import (
 
 // Sll is a scored linked list.
 type Sll struct {
-	head   *Node
-	tail   *Node
+	root   *Node
 	scores nodeScoreList
 }
 
 // Node is a scored linked list node.
 type Node struct {
-	Next  *Node
-	Prev  *Node
+	next  *Node
+	prev  *Node
+	list  *Sll
 	Score uint64
 	Value interface{}
 	// Might add a create field for TTL.
+}
+
+func (n *Node) Next() *Node {
+	if n.next != n.list.root {
+		return n.next
+	}
+
+	return nil
+}
+
+func (n *Node) Prev() *Node {
+	if n.prev != n.list.root {
+		return n.prev
+	}
+
+	return nil
 }
 
 // New creates a new *Sll. New takes an
@@ -26,9 +42,14 @@ type Node struct {
 // of capacity l. This reduces append latencies if
 // many elements are inserted into a new list.
 func New(l int) *Sll {
-	return &Sll{
+	ll := &Sll{
+		root:   &Node{},
 		scores: make(nodeScoreList, 0, l),
 	}
+
+	ll.root.next, ll.root.prev = ll.root, ll.root
+
+	return ll
 }
 
 // nodeScoreList holds a slice of *Node
@@ -62,12 +83,12 @@ func (ll *Sll) Len() uint {
 
 // Head returns the head *Node.
 func (ll *Sll) Head() *Node {
-	return ll.head
+	return ll.root.prev
 }
 
 // Tail returns the head *Node.
 func (ll *Sll) Tail() *Node {
-	return ll.tail
+	return ll.root.next
 }
 
 // HighScores takes an integer and returns the
@@ -112,36 +133,39 @@ func (ll *Sll) LowScores(r int) nodeScoreList {
 	return scores
 }
 
+// insertAt inserts node n
+// at position at in the *Sll.
+func insertAt(n, at *Node) {
+	at.next = n
+	n.prev = at
+	n.next = at.next
+	n.pext.prev = n
+}
+
+// pull removes a *Node from
+// it's position in the *Sll, but
+// doesn't remove the node from
+// the nodeScoreList. This is used for
+// repositioning nodes.
+func pull(n *Node) {
+	// Link next/prev nodes.
+	n.next.prev, n.prev.next = n.prev, n.next
+	// Remove references.
+	n.next, n.prev = nil, nil
+}
+
 // MoveToHead takes a *Node and moves it
 // to the front of the *Sll.
 func (ll *Sll) MoveToHead(n *Node) {
 	// Short-circuit if this
 	// is already the head.
-	if ll.head == n {
+	if ll.root.prev == n {
 		return
 	}
 
-	// If this is the tail,
-	// assign a new tail.
-	if ll.tail == n {
-		ll.tail = n.Next
-		ll.tail.Prev = nil
-	} else {
-		// This is neither the current
-		// head nor tail. Link the next &
-		// prev nodes.
-		n.Next.Prev, n.Prev.Next = n.Prev, n.Next
-	}
-
-	// Set current head Next to n.
-	ll.head.Next = n
-	// Set n prev to current head.
-	n.Prev = ll.head
-
-	// Ensure n Next is nil.
-	n.Next = nil
-	// Set n to head.
-	ll.head = n
+	// Pull and move node.
+	pull(n)
+	insertAt(n, ll.root.prev)
 }
 
 // MoveToTail takes a *Node and moves it
@@ -149,31 +173,13 @@ func (ll *Sll) MoveToHead(n *Node) {
 func (ll *Sll) MoveToTail(n *Node) {
 	// Short-circuit if this
 	// is already the tail.
-	if ll.tail == n {
+	if ll.root.next == n {
 		return
 	}
 
-	// If this is the head,
-	// assign a new head.
-	if ll.head == n {
-		ll.head = n.Prev
-		ll.head.Next = nil
-	} else {
-		// This is neither the current
-		// head nor tail. Link the next &
-		// prev nodes.
-		n.Next.Prev, n.Prev.Next = n.Prev, n.Next
-	}
-
-	// Set current tail Prev to n.
-	ll.tail.Prev = n
-	// Set n next to current tail.
-	n.Next = ll.tail
-
-	// Ensure n Prev is nil.
-	n.Prev = nil
-	// Set n to tail.
-	ll.tail = n
+	// Pull and move node.
+	pull(n)
+	insertAt(n, ll.root)
 }
 
 // PushHead creates a *Node with value v
@@ -182,23 +188,12 @@ func (ll *Sll) PushHead(v interface{}) *Node {
 	n := &Node{
 		Value: v,
 		Score: 0,
+		list:  ll,
 	}
 
+	// Add to scores and insert.
 	ll.scores = append(ll.scores, n)
-
-	// Is this a new ll?
-	if ll.head == nil {
-		ll.head = n
-		ll.tail = n
-		return n
-	}
-
-	// Set current head next to n.
-	ll.head.Next = n
-	// Set n prev to current head.
-	n.Prev = ll.head
-	// Swap n to head.
-	ll.head = n
+	insertAt(n, ll.root.prev)
 
 	return n
 }
@@ -209,148 +204,34 @@ func (ll *Sll) PushTail(v interface{}) *Node {
 	n := &Node{
 		Value: v,
 		Score: 0,
+		list:  ll,
 	}
 
+	// Add to scores and insert.
 	ll.scores = append(ll.scores, n)
-
-	// Is this a new ll?
-	if ll.tail == nil {
-		ll.head = n
-		ll.tail = n
-		return n
-	}
-
-	// Set current tail prev to n.
-	ll.tail.Prev = n
-	// Set n next to current tail.
-	n.Next = ll.tail
-	// Swap n to tail.
-	ll.tail = n
+	insertAt(n, ll.root)
 
 	return n
 }
 
 // Remove removes a *Node from the *Sll.
 func (ll *Sll) Remove(n *Node) {
-	// If this is a single element list.
-	if ll.head == ll.tail {
-		ll.head, ll.tail = nil, nil
-		goto updatescores
-	}
-
-	// Check if this node is the head/tail.
-
-	// If head, promote prev to head.
-	if ll.head == n {
-		ll.head = n.Prev
-		ll.head.Next = nil
-		goto updatescores
-	}
-	// If tail, promote next to tail.
-	if ll.tail == n {
-		ll.tail = n.Next
-		ll.tail.Prev = nil
-		goto updatescores
-	}
-
-	// This node is otherwise at a non-end.
-	// Link the next node and the prev.
-	// TODO these used to have
-	// if !nil checks; making it here
-	// with nil should be considered a bug.
-	n.Next.Prev, n.Prev.Next = n.Prev, n.Next
-
-updatescores:
+	// Link next/prev nodes.
+	n.next.prev, n.prev.next = n.prev, n.next
 	// Remove references.
-	n.Next, n.Prev = nil, nil
+	n.next, n.prev = nil, nil
 	//Update scores.
 	ll.scores = removeFromScores(ll.scores, n)
 }
 
 // RemoveHead removes the current *Sll.head.
 func (ll *Sll) RemoveHead() {
-	if ll.head == nil {
-		return
-	}
-
-	oldHead := ll.head
-
-	// Set head to current head.Prev.
-	ll.head = oldHead.Prev
-	// Set new head Next to nil.
-	ll.head.Next = nil
-	// Remove old head references.
-	oldHead.Next, oldHead.Prev = nil, nil
-	//Update scores.
-	ll.scores = removeFromScores(ll.scores, oldHead)
+	ll.Remove(ll.root.prev)
 }
 
 // RemoveTail removes the current *Sll.tail.s
 func (ll *Sll) RemoveTail() {
-	if ll.tail == nil {
-		return
-	}
-
-	oldTail := ll.tail
-
-	// Set tail to current tail.Next.
-	ll.tail = oldTail.Next
-	// Set new tail Prev to nil.
-	ll.tail.Prev = nil
-	// Remove old head references.
-	oldTail.Next, oldTail.Prev = nil, nil
-	//Update scores.
-	ll.scores = removeFromScores(ll.scores, oldTail)
-}
-
-// Special methods. TODO These may be removed.
-
-// PushHeadNode takes an existing *Node and
-// sets it as the head of the *Sll. The *Node
-// is also added to the score list.
-func (ll *Sll) PushHeadNode(n *Node) {
-	ll.scores = append(ll.scores, n)
-
-	// Is this a new ll?
-	if ll.head == nil {
-		ll.head = n
-		ll.tail = n
-		n.Next, n.Prev = nil, nil
-		return
-	}
-
-	// Set current head next to n.
-	ll.head.Next = n
-	// Set n prev to current head.
-	n.Prev = ll.head
-	// Swap n to head.
-	ll.head = n
-	// Set n Next to nil.
-	n.Next = nil
-}
-
-// PushTailNode takes an existing *Node and
-// sets it as the tail of the *Sll. The *Node
-// is also added to the score list.
-func (ll *Sll) PushTailNode(n *Node) {
-	ll.scores = append(ll.scores, n)
-
-	// Is this a new ll?
-	if ll.tail == nil {
-		ll.head = n
-		ll.tail = n
-		n.Next, n.Prev = nil, nil
-		return
-	}
-
-	// Set current tail prev to n.
-	ll.tail.Prev = n
-	// Set n next to current tail.
-	n.Next = ll.tail
-	// Swap n to tail.
-	ll.tail = n
-	// Set n Prev to nil.
-	n.Prev = nil
+	ll.Remove(ll.root.next)
 }
 
 // removeFromScores removes n from the nodeScoreList scores.
