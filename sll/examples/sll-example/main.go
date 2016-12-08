@@ -53,8 +53,8 @@ func main() {
 	node := s.Tail()
 	for {
 		fmt.Printf("%s -> ", node.Read())
-		if node.Next != nil {
-			node = node.Next
+		if node.Next() != nil {
+			node = node.Next()
 		} else {
 			break
 		}
@@ -64,8 +64,8 @@ func main() {
 	node = s.Head()
 	for {
 		fmt.Printf("%s -> ", node.Read())
-		if node.Prev != nil {
-			node = node.Prev
+		if node.Prev() != nil {
+			node = node.Prev()
 		} else {
 			break
 		}
@@ -89,8 +89,8 @@ func main() {
 	node = s.Tail()
 	for {
 		fmt.Printf("%s -> ", node.Read())
-		if node.Next != nil {
-			node = node.Next
+		if node.Next() != nil {
+			node = node.Next()
 		} else {
 			break
 		}
@@ -102,8 +102,8 @@ func main() {
 	node = s.Tail()
 	for {
 		fmt.Printf("%s -> ", node.Read())
-		if node.Next != nil {
-			node = node.Next
+		if node.Next() != nil {
+			node = node.Next()
 		} else {
 			break
 		}
@@ -114,8 +114,8 @@ func main() {
 	node = s.Tail()
 	for {
 		fmt.Printf("%s -> ", node.Read())
-		if node.Next != nil {
-			node = node.Next
+		if node.Next() != nil {
+			node = node.Next()
 		} else {
 			break
 		}
@@ -128,22 +128,22 @@ func main() {
 	node = s.Tail()
 	for {
 		fmt.Printf("%s -> ", node.Read())
-		if node.Next != nil {
-			node = node.Next
+		if node.Next() != nil {
+			node = node.Next()
 		} else {
 			break
 		}
 	}
 
 	fmt.Printf("\n\n[ remove second from last node ]\n")
-	node = s.Tail().Next
+	node = s.Tail().Next()
 	s.Remove(node)
 
 	node = s.Tail()
 	for {
 		fmt.Printf("%s -> ", node.Read())
-		if node.Next != nil {
-			node = node.Next
+		if node.Next() != nil {
+			node = node.Next()
 		} else {
 			break
 		}
