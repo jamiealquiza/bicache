@@ -24,6 +24,21 @@ Usage of bicached:
         MRU cache size (default 64)
 ```
 
+# Commands
+Bicached implements bicache methods accesible as plaintext tcp commands.
+
+### get \<keyname\>
+Returns the value for \<keyname\>.
+
+### set \<keyname\>:\<value\>
+Sets or updates the \<keyname\> value to \<value\>.
+
+### del \<keyname\>
+Deletes \<keyname\>.
+
+### list \<int\>
+Returns the top \<int\> keys by read score, formatted as \<keyname\>:\<state\>:\<score\>. State denotes which cache tier the key exists in, where 0 = MRU and 1 = MFU.
+
 # Examples
 
 Set, Get 10 keys:
