@@ -1,6 +1,6 @@
 # Bicached
 
-[UNSTABLE] Bicache server.
+Bicache server.
 
 # Install
 Tested with Go 1.7.
