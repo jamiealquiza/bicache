@@ -14,7 +14,9 @@ In a MRU cache, both fetching and setting a key moves it to the front of the lis
 Commonly, a cache miss works as follows: `cache get` -> `miss` -> `backend lookup` -> `cache results`. If a piece of software were to traverse a large list of user IDs stored in a backend database, it's likely that the cache capacity will be much smaller than the number of user IDs available in the database. This will result in the entire MRU being flushed and replaced.
 ![img](https://raw.githubusercontent.com/jamiealquiza/catpics/master/mru.png)
 
-Bicache isolates MRU large scan evictions by promoting the most used keys to an MFU cache when the MRU cache is full. MRU to MFU promotions are smart; rather than attempting to promote tail items, Bicache asynchronously gathers the highest score MRU keys and promotes those that have scores exceeding keys in the MFU. Any remainder key count that must be evicted relegates to MFU to MRU demotion followed by MRU tail eviction.
+Bicache isolates MRU large scan evictions by promoting the most used keys to an MFU cache when the MRU cache is full. MRU to MFU promotions are intelligent; rather than attempting to promote tail items, Bicache asynchronously gathers the highest score MRU keys and promotes those that have scores exceeding keys in the MFU. Any remainder key count that must be evicted relegates to MFU to MRU demotion followed by MRU tail eviction.
+
+New keys are always set to the head of the MRU list; MFU keys are only ever set by promotion. 
 ![img](https://raw.githubusercontent.com/jamiealquiza/catpics/master/mfu-mru.png)
 
 
