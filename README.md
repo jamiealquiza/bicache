@@ -1,11 +1,23 @@
 [![GoDoc](https://godoc.org/github.com/jamiealquiza/bicache?status.svg)](https://godoc.org/github.com/jamiealquiza/bicache)
 
 # bicache
-Bicache is a hybrid MFU/MRU cache for Go. Why should you be interested? Pure MRU caches are great because they're fast, simple and safe. Items that are used often generally remain in the cache. The problem is that a single, large scan where the number of misses exceeds the MRU cache size causes _highly used_ (and perhaps the most useful) data to be evicted in favor of _recent_ data. A hybrid MFU/MRU cache makes the distinction of item value vs recency based on a history of read counts. This means that valuable (and potentially expensive-to-cache) keys are insulated from big, cheap scans of potentially less valuable data, while retaining the general expectations of an MRU cache.
+Bicache is a hybrid MFU/MRU cache for Go. Why should you be interested? Pure MRU caches are great because they're fast, simple and safe. Items that are used often generally remain in the cache. The problem is that a single, large scan where the number of misses exceeds the MRU cache size causes _highly used_ (and perhaps the most useful) data to be evicted in favor of _recent_ data. A hybrid MFU cache makes the distinction of item value vs recency based on a history of read counts. This means that valuable (and potentially expensive-to-cache) keys are insulated from big, cheap scans of potentially less valuable data.
 
-Bicache provides a size configurable (in key count [and eventually data size]) two-tier cache, with least-frequently (based on `Get` operations) and least-recently used replacement policies (functionally MFU and MRU, respectively). A shared lookup table is used, limiting read ops to a max of one cache miss over two tiers of cache. Bicache allows MRU to MFU promotions and overflow evictions at write time or on automatic interval as a background task.
+Bicache provides a size configurable (in key count [and eventually data size]) two-tier cache, with least-frequently and least-recently used replacement policies (functionally MFU and MRU, respectively). A shared lookup table is used, limiting read ops to a max of one cache miss over two tiers of cache. Bicache allows MRU to MFU promotions and overflow evictions at write time or on automatic interval as a background task.
 
 Bicached averages roughly p95 single-digit microsecond Sets and 500 nanosecond Gets at 100,000 keys on modern hardware (assuming a promotion/eviction is not running; the impact can vary greatly depending on configuration).
+
+# Diagram
+
+In a MRU cache, both fetching and setting a key moves it to the front of the list. When the list is full, keys are evicted from the tail when space for a new key is needed. An item that is hit often (in orange) remains in the cache by probability that it was accessed recently.
+
+Commonly, a cache miss works as follows: `cache get` -> `miss` -> `backend lookup` -> `cache results`. If a piece of software were to traverse a large list of user IDs stored in a backend database, it's likely that the cache capacity will be much smaller than the number of user IDs available in the database. This will result in the entire MRU being flushed and replaced.
+![img](https://raw.githubusercontent.com/jamiealquiza/catpics/master/mru.png)
+
+Bicache isolates MRU large scan evictions by promoting the most used keys to an MFU cache when the MRU cache is full. MRU to MFU promotions are smart; rather than attempting to promote tail items, Bicache asynchronously gathers the highest score MRU keys and promotes those that have scores exceeding keys in the MFU. Any remainder key count that must be evicted relegates to MFU to MRU demotion followed by MRU tail eviction.
+![img](https://raw.githubusercontent.com/jamiealquiza/catpics/master/mfu-mru.png)
+
+
 
 # Installation
 Test with Go 1.7.
@@ -87,6 +99,3 @@ a string
 
 {"MfuSize":1,"MruSize":3,"MfuUsedP":20,"MruUsedP":100}
 ```
-
-# Misc.
-[Diagram](https://raw.githubusercontent.com/jamiealquiza/catpics/master/bicache.jpg)
