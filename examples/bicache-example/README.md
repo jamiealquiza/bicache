@@ -17,7 +17,6 @@ for i := 0; i < 50000; i++ {
 }
 ```
 
-
 Running:
 ```
 % bicache-example
@@ -53,3 +52,5 @@ Rate/sec.:      4606242.92
 
 {"MfuSize":25000,"MruSize":25000,"MfuUsedP":50,"MruUsedP":100}
 ```
+
+Note: timing data via [tachymeter](https://github.com/jamiealquiza/tachymeter)
