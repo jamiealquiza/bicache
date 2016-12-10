@@ -142,7 +142,7 @@ func (b *Bicache) Stats() *Stats {
 }
 
 // PromoteEvict checks if the MRU exceeds the
-// Config.MruSize (our overflow count) If so, the top <overflow count>
+// Config.MruSize (overflow count) If so, the top <overflow count>
 // MRU scores are checked against the MFU. If any of the top MRU scores
 // are greater than the lowest MFU scores, they are promoted
 // to the MFU (if possible). Any remaining overflow count
@@ -172,7 +172,6 @@ func (b *Bicache) PromoteEvict() {
 		mfuFree = 0
 	}
 
-	// Promote what we can.
 	// canPromote is the count of mruOverflow
 	// that can fit into currently unused MFU slots.
 	// This is only likely to be met if this
@@ -276,7 +275,7 @@ promoteByScore:
 	}
 
 evictFromMruTail:
-	// What's our overflow remainder count?
+	// What's the overflow remainder count?
 	toEvict := mruOverflow - promotedByScore
 	// Evict this many from the MRU tail.
 	for i := 0; i < toEvict; i++ {

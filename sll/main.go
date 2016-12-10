@@ -143,7 +143,7 @@ func insertAt(n, at *Node) {
 }
 
 // pull removes a *Node from
-// it's position in the *Sll, but
+// its position in the *Sll, but
 // doesn't remove the node from
 // the nodeScoreList. This is used for
 // repositioning nodes.
