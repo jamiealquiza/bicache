@@ -18,6 +18,13 @@ func main() {
 
 	keys := 100000
 
+	// Pre-warm cache for writes;
+	// normally the entire cache wouldn't
+	// be populated in one go.
+	for i := 0; i < keys; i++ {
+		c.Set(i, i)
+	}
+
 	t := tachymeter.New(&tachymeter.Config{Size: keys})
 	fmt.Printf("[ Set %d keys ]\n", keys)
 	for i := 0; i < keys; i++ {

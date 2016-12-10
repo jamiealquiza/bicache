@@ -22,33 +22,33 @@ Running:
 % bicache-example
 [ Set 100000 keys ]
 100000 samples of 100000 events
-Cumulative:     102.444759ms
-Avg.:           1.024µs
-p50:            427ns
-p75:            719ns
-p95:            3.035µs
-p99:            8.33µs
-p999:           25.525µs
-Long 5%:        9.198µs
-Short 5%:       273ns
-Max:            2.168331ms
-Min:            248ns
-Rate/sec.:      976135.83
+Cumulative:     21.523946ms
+Avg.:           215ns
+p50:            191ns
+p75:            215ns
+p95:            359ns
+p99:            495ns
+p999:           2.811µs
+Long 5%:        695ns
+Short 5%:       137ns
+Max:            49.386µs
+Min:            121ns
+Rate/sec.:      4645988.24
 
 [ Get 100000 keys ]
 100000 samples of 100000 events
-Cumulative:     21.709667ms
-Avg.:           217ns
-p50:            206ns
-p75:            233ns
-p95:            341ns
-p99:            441ns
-p999:           579ns
-Long 5%:        443ns
-Short 5%:       155ns
-Max:            91.837µs
+Cumulative:     23.596428ms
+Avg.:           235ns
+p50:            218ns
+p75:            241ns
+p95:            400ns
+p99:            566ns
+p999:           1.272µs
+Long 5%:        564ns
+Short 5%:       151ns
+Max:            35.76µs
 Min:            135ns
-Rate/sec.:      4606242.92
+Rate/sec.:      4237929.57
 
 {"MfuSize":25000,"MruSize":25000,"MfuUsedP":50,"MruUsedP":100}
 ```
