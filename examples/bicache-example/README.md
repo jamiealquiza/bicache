@@ -21,29 +21,35 @@ for i := 0; i < 50000; i++ {
 Running:
 ```
 % bicache-example
-[ Set 50000 keys ]
-50000 samples of 50000 events
-Total:			49.690964ms
-Avg.:			993ns
-Median: 		450ns
-95%ile:			2.496µs
-Longest 5%:		8.577µs
-Shortest 5%:	371ns
-Max:			1.517224ms
-Min:			347ns
-Rate/sec.:		1006219.16
+[ Set 100000 keys ]
+100000 samples of 100000 events
+Cumulative:     102.444759ms
+Avg.:           1.024µs
+p50:            427ns
+p75:            719ns
+p95:            3.035µs
+p99:            8.33µs
+p999:           25.525µs
+Long 5%:        9.198µs
+Short 5%:       273ns
+Max:            2.168331ms
+Min:            248ns
+Rate/sec.:      976135.83
 
-[ Get 50000 keys ]
-50000 samples of 50000 events
-Total:			11.500957ms
-Avg.:			230ns
-Median: 		216ns
-95%ile:			301ns
-Longest 5%:		388ns
-Shortest 5%:	189ns
-Max:			13.697µs
-Min:			168ns
-Rate/sec.:		4347464.30
+[ Get 100000 keys ]
+100000 samples of 100000 events
+Cumulative:     21.709667ms
+Avg.:           217ns
+p50:            206ns
+p75:            233ns
+p95:            341ns
+p99:            441ns
+p999:           579ns
+Long 5%:        443ns
+Short 5%:       155ns
+Max:            91.837µs
+Min:            135ns
+Rate/sec.:      4606242.92
 
 {"MfuSize":25000,"MruSize":25000,"MfuUsedP":50,"MruUsedP":100}
 ```
