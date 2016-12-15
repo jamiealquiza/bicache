@@ -32,7 +32,6 @@ func main() {
 		c.Set(i, i)
 		t.AddTime(time.Since(start))
 	}
-	t.AddCount(keys)
 	t.Calc().Dump()
 
 	fmt.Println()
@@ -60,7 +59,6 @@ func main() {
 		_ = c.Get(i)
 		t.AddTime(time.Since(start))
 	}
-	t.AddCount(keys)
 
 	t.Calc().Dump()
 
