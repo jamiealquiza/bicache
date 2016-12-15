@@ -1,6 +1,6 @@
 # Bicached
 
-Bicache server.
+Bicache server. Super crude / WIP.
 
 # Install
 Tested with Go 1.7.
