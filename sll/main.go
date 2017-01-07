@@ -106,6 +106,9 @@ func (ll *Sll) HighScores(r int) nodeScoreList {
 		return scores
 	}
 
+	// We return a copy because the
+	// underlying array order will
+	// possibly change.
 	scores := make(nodeScoreList, r)
 	copy(scores, ll.scores[len(ll.scores)-r:])
 
@@ -127,6 +130,9 @@ func (ll *Sll) LowScores(r int) nodeScoreList {
 		return scores
 	}
 
+	// We return a copy because the
+	// underlying array order will
+	// possibly change.
 	scores := make(nodeScoreList, r)
 	copy(scores, ll.scores[:r])
 
