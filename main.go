@@ -157,8 +157,12 @@ func (b *Bicache) PromoteEvict() {
 		return
 	}
 
-	// TODO If MFU cap is 0, shortcut to
+	// If MFU cap is 0, shortcut to
 	// LRU-only behavior.
+	if b.mfuCap == 0 {
+		b.evictFromMruTail(mruOverflow)
+		return
+	}
 
 	// Get the top n MRU elements
 	// where n = MRU capacity overflow.
@@ -219,18 +223,17 @@ promoteByScore:
 	mruOverflow -= canPromote
 	remainderPosition := canPromote
 
+	// Counter to track
+	// how many from the MRU keys
+	// were promoted by score.
+	var promotedByScore int
+
 	// We're here on two conditions:
 	// 1) The MFU was full. We need to handle all mruToPromoteEvict (canPromote == 0).
 	// 2) We promoted some mruToPromoteEvict and have leftovers (canPromote > 0).
 
 	// Get top MRU scores and bottom MFU scores to compare.
 	bottomMfu := b.mfuCache.LowScores(mruOverflow)
-
-	// Counter to track
-	// how many from the MRU to
-	// be promoted were promoted
-	// by score.
-	var promotedByScore int
 
 	// If the lowest MFU score is higher than the lowest
 	// score to promote, none of these are eligible.
@@ -278,10 +281,14 @@ evictFromMruTail:
 	// What's the overflow remainder count?
 	toEvict := mruOverflow - promotedByScore
 	// Evict this many from the MRU tail.
-	for i := 0; i < toEvict; i++ {
+	b.evictFromMruTail(toEvict)
+
+}
+
+func (b *Bicache) evictFromMruTail(n int) {
+	for i := 0; i < n; i++ {
 		node := b.mruCache.Tail()
 		delete(b.cacheMap, node.Value.(*cacheData).k)
 		b.mruCache.RemoveTail()
 	}
-
 }
