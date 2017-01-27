@@ -251,12 +251,10 @@ func removeFromScores(scores nodeScoreList, n *Node) nodeScoreList {
 
 	// Unrolling with 5 elements
 	// has cut CPU-cached small element
-	// slice search times in half. Needs further
-	// testing though.
-	// This will cause an out of bounds
-	// crash if the element we're searching for
-	// somehow doesn't exist (as a result of some
-	// other bug).
+	// slice search times in half. Needs further testing.
+	// This will cause an out of bounds crash if the
+	// element we're searching for somehow doesn't exist
+	// (as a result of some other bug).
 	var i int
 	for p := 0; p < len(scores); p += 5 {
 		if scores[p] == n {
