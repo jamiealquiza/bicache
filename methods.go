@@ -23,6 +23,8 @@ package bicache
 
 import (
 	"sort"
+	"sync/atomic"
+	"time"
 )
 
 // keyInfo holds a key name, state (0: MRU, 1: MRU)
@@ -66,6 +68,44 @@ func (lr ListResults) Swap(i, j int) {
 // already exists, the value is updated.
 func (b *Bicache) Set(k, v interface{}) {
 	b.Lock()
+	// If the entry exists, update. If not,
+	// create at the tail of the MRU cache.
+	if n, exists := b.cacheMap[k]; exists {
+		n.node.Value.(*cacheData).v = v
+		if n.state == 0 {
+			b.mruCache.MoveToHead(n.node)
+		}
+	} else {
+		// Create at the MRU tail.
+		b.cacheMap[k] = &entry{
+			node: b.mruCache.PushHead(&cacheData{k: k, v: v}),
+		}
+	}
+
+	b.Unlock()
+
+	// PromoteEvict on write if it's
+	// not being handled automatically.
+	if !b.autoEvict {
+		b.PromoteEvict()
+	}
+}
+
+// SetTtl is the same as set but accepts a
+// parameter t to specify a TTL in seconds.
+func (b *Bicache) SetTtl(k, v interface{}, t int32) {
+	b.Lock()
+
+	// Set TTL expiration
+	b.ttlMap[k] = time.Now().Add(time.Second * time.Duration(t))
+
+	// Increment TTL counter.
+	atomic.AddUint64(&b.ttlCount, 1)
+
+	// Proceed to normal Set operation.
+	// This logic is duplicated for now
+	// to skip releasing / re-acquiring a mutex.
+
 	// If the entry exists, update. If not,
 	// create at the tail of the MRU cache.
 	if n, exists := b.cacheMap[k]; exists {

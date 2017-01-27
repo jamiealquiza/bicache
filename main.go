@@ -22,9 +22,11 @@
 package bicache
 
 import (
+	"container/list"
 	"log"
 	"sort"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/jamiealquiza/bicache/sll"
@@ -46,7 +48,8 @@ type Bicache struct {
 	mfuCap    uint
 	mruCap    uint
 	autoEvict bool
-	// MFU top/bottom scores.
+	ttlCount  uint64
+	ttlMap    map[interface{}]time.Time
 }
 
 // Config holds a Bicache configuration.
@@ -99,6 +102,7 @@ func New(c *Config) *Bicache {
 		mruCache: sll.New(int(c.MruSize)),
 		mfuCap:   c.MfuSize,
 		mruCap:   c.MruSize,
+		ttlMap:   make(map[interface{}]time.Time),
 	}
 
 	var start time.Time
@@ -112,10 +116,17 @@ func New(c *Config) *Bicache {
 			defer interval.Stop()
 
 			for _ = range interval.C {
-				if c.EvictLog {
-					start = time.Now()
+				start = time.Now()
+
+				// Run ttl evictions.
+				b.EvictTtl()
+
+				if c.EvictLog && atomic.LoadUint64(&b.ttlCount) > 0 {
+					log.Printf("EvictTtl ran in %s\n", time.Since(start))
 				}
 
+				// Run promotions/overflow evictions.
+				start = time.Now()
 				b.PromoteEvict()
 
 				if c.EvictLog {
@@ -139,6 +150,52 @@ func (b *Bicache) Stats() *Stats {
 	stats.MruUsedP = uint(float64(stats.MruSize) / float64(b.mruCap) * 100)
 
 	return stats
+}
+
+// EvictTtl evicts expired keys using a mark
+// sweep garbage collection.
+func (b *Bicache) EvictTtl() {
+	// Return if we have to items with TTLs.
+	if atomic.LoadUint64(&b.ttlCount) == 0 {
+		return
+	}
+
+	expired := list.New()
+
+	// Mark expired entries.
+	// Keys are pushed into a linked list.
+	b.RLock()
+	now := time.Now()
+	for k, ttl := range b.ttlMap {
+		if now.After(ttl) {
+			_ = expired.PushBack(k)
+		}
+	}
+	b.RUnlock()
+
+	// Lock and evict.
+	b.Lock()
+	defer b.Unlock()
+
+	for k := expired.Front(); k != nil; k = k.Next() {
+		if n, exists := b.cacheMap[k.Value]; exists {
+			delete(b.cacheMap, k.Value)
+			delete(b.ttlMap, k.Value)
+			switch n.state {
+			case 0:
+				b.mruCache.Remove(n.node)
+			case 1:
+				b.mfuCache.Remove(n.node)
+			}
+			// Prevents some obscure
+			// scenario where ttlCount is
+			// already 0 and we rollover to
+			// uint max.
+			if b.ttlCount > 0 {
+				b.ttlCount--
+			}
+		}
+	}
 }
 
 // PromoteEvict checks if the MRU exceeds the
