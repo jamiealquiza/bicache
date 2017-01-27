@@ -347,5 +347,14 @@ func (b *Bicache) evictFromMruTail(n int) {
 		node := b.mruCache.Tail()
 		delete(b.cacheMap, node.Value.(*cacheData).k)
 		b.mruCache.RemoveTail()
+
+		// Check if this key existed in the
+		// ttl map. Clean up entry / counter, if so.
+		if _, exists := b.ttlMap[node.Value.(*cacheData).k]; exists {
+			delete(b.ttlMap, node.Value.(*cacheData).k)
+			if b.ttlCount > 0 {
+				b.ttlCount--
+			}
+		}
 	}
 }
