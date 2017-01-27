@@ -85,7 +85,7 @@ func main() {
 		MfuSize:   5, // MFU capacity in keys
 		MruSize:   3, // MRU capacity in keys
 		AutoEvict: 500, // Run TTL evictions + MRU->MFU promotions / evictions automatically every 500ms.
-		EvictLog: true,
+		EvictLog: true, // Emit eviction timing logs.
 	})
 
 	// Keys and values can be any
