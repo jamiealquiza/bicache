@@ -26,10 +26,11 @@ var (
 	// Commands is a map of valid API requests
 	// to internal functions.
 	commands = map[string]func(c *bicache.Bicache, r *Request) string{
-		"get":  get,
-		"set":  set,
-		"del":  del,
-		"list": list,
+		"get":    get,
+		"set":    set,
+		"setttl": setTtl,
+		"del":    del,
+		"list":   list,
 	}
 )
 
@@ -146,6 +147,21 @@ func set(c *bicache.Bicache, r *Request) string {
 	parts := strings.Split(r.params, ":")
 	k, v := parts[0], parts[1]
 	c.Set(k, v)
+
+	return "ok\n"
+}
+
+// Bicache SetTtl method.
+func setTtl(c *bicache.Bicache, r *Request) string {
+	parts := strings.Split(r.params, ":")
+	k, v, ttlVal := parts[0], parts[1], parts[2]
+
+	ttl, err := strconv.ParseInt(ttlVal, 10, 32)
+	if err != nil {
+		return "bad ttl\n"
+	}
+
+	c.SetTtl(k, v, int32(ttl))
 
 	return "ok\n"
 }
