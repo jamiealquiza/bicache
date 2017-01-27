@@ -42,7 +42,9 @@ Increments key score by 1.
 Moves key to head of MRU cache.
 
 ### SetTtl
-`Set` with a TTL expiry in seconds.
+`Set(key, value, ttl)` -> sets `key` to `value` (if exists, updates) with a `ttl` expiration (in seconds)
+
+Moves key to head of MRU cache.
 
 ### Del
 `Del(key)` -> removes key from cache
