@@ -33,6 +33,9 @@ Returns the value for \<keyname\>.
 ### set \<keyname\>:\<value\>
 Sets or updates the \<keyname\> value to \<value\>.
 
+### setttl \<keyname\>:\<value\>:\<ttl\>
+Sets or updates the \<keyname\> value to \<value\> with a TTL timeout of \<ttl\> seconds.
+
 ### del \<keyname\>
 Deletes \<keyname\>.
 

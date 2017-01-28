@@ -41,11 +41,30 @@ Increments key score by 1.
 
 Moves key to head of MRU cache.
 
+### SetTtl
+`Set(key, value, ttl)` -> sets `key` to `value` (if exists, updates) with a `ttl` expiration (in seconds)
+
+Moves key to head of MRU cache.
+
 ### Del
 `Del(key)` -> removes key from cache
 
 ### List
 `List(int)` -> returns the top n key names:state:score (state: 0 = MRU cache, 1 = MFU cache)
+
+# Configuration
+
+### Cache sizes
+
+Bicache can be configured with arbitrary sizes for each cache, allowing a ratio of MFU to MRU for different usage patterns. While the example shows very low cache sizes, this is purely to demonstrate functionality when the MRU is overflowed. A real world configuration might be a 10,000 key MFU and 30,000 key MRU capacity.
+
+The MFU can also be set to 0, causing Bicache to behave like a typical MRU/LRU cache.
+
+### Auto Eviction
+
+TTL expirations, MRU to MFU promotions, and MRU overflow evictions only occur automatically if the `AutoEvict` configuration parameter is set. This is a background task that only runs if a non-zero parameter is set. If unset or explicitely configured to 0, TTL expirations never run and MRU promotions and evictions will be performed at each Set operation.
+
+The Bicache `EvictLog` configuratio parameter specifies whether or not eviction timing logs are emitted.
 
 # Example
 
@@ -65,7 +84,8 @@ func main() {
 	c := bicache.New(&bicache.Config{
 		MfuSize:   5, // MFU capacity in keys
 		MruSize:   3, // MRU capacity in keys
-		AutoEvict: 500, // Run promotions/evictions automatically every 500ms.
+		AutoEvict: 500, // Run TTL evictions + MRU->MFU promotions / evictions automatically every 500ms.
+		EvictLog: true, // Emit eviction timing logs.
 	})
 
 	// Keys and values can be any
