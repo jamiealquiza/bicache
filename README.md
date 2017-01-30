@@ -119,5 +119,5 @@ a string
 10
 5
 
-{"MfuSize":1,"MruSize":3,"MfuUsedP":20,"MruUsedP":100}
+{"MfuSize":1,"MruSize":3,"MfuUsedP":20,"MruUsedP":100,"Hits":4,"Misses":0,"Evictions":0}}
 ```
