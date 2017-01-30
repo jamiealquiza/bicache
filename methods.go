@@ -155,6 +155,7 @@ func (b *Bicache) Del(k interface{}) {
 
 	if n, exists := b.cacheMap[k]; exists {
 		delete(b.cacheMap, k)
+		delete(b.ttlMap, k)
 		switch n.state {
 		case 0:
 			b.mruCache.Remove(n.node)
