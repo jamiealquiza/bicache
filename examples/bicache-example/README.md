@@ -37,20 +37,20 @@ Rate/sec.:      4645988.24
 
 [ Get 100000 keys ]
 100000 samples of 100000 events
-Cumulative:     23.596428ms
-Avg.:           235ns
-p50:            218ns
-p75:            241ns
-p95:            400ns
-p99:            566ns
-p999:           1.272µs
-Long 5%:        564ns
-Short 5%:       151ns
-Max:            35.76µs
-Min:            135ns
-Rate/sec.:      4237929.57
+Cumulative:	19.242196ms
+Avg.:		192ns
+p50: 		182ns
+p75:		219ns
+p95:		311ns
+p99:		446ns
+p999:		589ns
+Long 5%:	481ns
+Short 5%:	100ns
+Max:		281.841µs
+Min:		82ns
+Rate/sec.:	5196912.04
 
-{"MfuSize":25000,"MruSize":25000,"MfuUsedP":50,"MruUsedP":100}
+{"MfuSize":0,"MruSize":100000,"MfuUsedP":0,"MruUsedP":200,"Hits":100010,"Misses":0,"Evictions":0}
 ```
 
 Note: timing data via [tachymeter](https://github.com/jamiealquiza/tachymeter)
