@@ -134,7 +134,7 @@ func New(c *Config) *Bicache {
 				// Run ttl evictions.
 				b.EvictTtl()
 
-				if c.EvictLog && atomic.LoadUint64(&b.ttlCount) > 0 {
+				if c.EvictLog {
 					log.Printf("EvictTtl ran in %s\n", time.Since(start))
 				}
 
