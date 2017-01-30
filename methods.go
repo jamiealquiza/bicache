@@ -137,9 +137,11 @@ func (b *Bicache) Get(k interface{}) interface{} {
 
 	if n, exists := b.cacheMap[k]; exists {
 		read := n.node.Read()
+		atomic.AddUint64(&b.counters.hits, 1)
 		return read.(*cacheData).v
 	}
 
+	atomic.AddUint64(&b.counters.misses, 1)
 	return nil
 }
 

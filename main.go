@@ -50,6 +50,15 @@ type Bicache struct {
 	autoEvict bool
 	ttlCount  uint64
 	ttlMap    map[interface{}]time.Time
+	counters  *Counters
+}
+
+// Counters holds Bicache performance
+// data.
+type Counters struct {
+	hits      uint64
+	misses    uint64
+	evictions uint64
 }
 
 // Config holds a Bicache configuration.
@@ -87,10 +96,13 @@ type cacheData struct {
 // Stats holds Bicache
 // statistics data.
 type Stats struct {
-	MfuSize  uint // Number of acive MFU keys.
-	MruSize  uint // Number of active MRU keys.
-	MfuUsedP uint // MFU used in percent.
-	MruUsedP uint // MRU used in percent.
+	MfuSize   uint   // Number of acive MFU keys.
+	MruSize   uint   // Number of active MRU keys.
+	MfuUsedP  uint   // MFU used in percent.
+	MruUsedP  uint   // MRU used in percent.
+	Hits      uint64 // Cache hits.
+	Misses    uint64 // Cache misses.
+	Evictions uint64 // Cache evictions.
 }
 
 // New takes a *Config and returns
@@ -103,6 +115,7 @@ func New(c *Config) *Bicache {
 		mfuCap:   c.MfuSize,
 		mruCap:   c.MruSize,
 		ttlMap:   make(map[interface{}]time.Time),
+		counters: &Counters{},
 	}
 
 	var start time.Time
@@ -148,6 +161,9 @@ func (b *Bicache) Stats() *Stats {
 
 	stats.MfuUsedP = uint(float64(stats.MfuSize) / float64(b.mfuCap) * 100)
 	stats.MruUsedP = uint(float64(stats.MruSize) / float64(b.mruCap) * 100)
+	stats.Hits = atomic.LoadUint64(&b.counters.hits)
+	stats.Misses = atomic.LoadUint64(&b.counters.misses)
+	stats.Evictions = atomic.LoadUint64(&b.counters.evictions)
 
 	return stats
 }
@@ -165,18 +181,20 @@ func (b *Bicache) EvictTtl() {
 	// Mark expired entries.
 	// Keys are pushed into a linked list.
 	b.RLock()
+
 	now := time.Now()
 	for k, ttl := range b.ttlMap {
 		if now.After(ttl) {
 			_ = expired.PushBack(k)
 		}
 	}
+
 	b.RUnlock()
 
 	// Lock and evict.
 	b.Lock()
-	defer b.Unlock()
 
+	var evicted uint64
 	for k := expired.Front(); k != nil; k = k.Next() {
 		if n, exists := b.cacheMap[k.Value]; exists {
 			delete(b.cacheMap, k.Value)
@@ -187,15 +205,14 @@ func (b *Bicache) EvictTtl() {
 			case 1:
 				b.mfuCache.Remove(n.node)
 			}
-			// Prevents some obscure
-			// scenario where ttlCount is
-			// already 0 and we rollover to
-			// uint max.
-			if b.ttlCount > 0 {
-				b.ttlCount--
-			}
+			evicted++
 		}
 	}
+
+	// Update the ttlCount.
+	b.decrementTtlCount(evicted)
+
+	b.Unlock()
 }
 
 // PromoteEvict checks if the MRU exceeds the
@@ -348,13 +365,35 @@ func (b *Bicache) evictFromMruTail(n int) {
 		delete(b.cacheMap, node.Value.(*cacheData).k)
 		b.mruCache.RemoveTail()
 
+		var evicted uint64
+
 		// Check if this key existed in the
 		// ttl map. Clean up entry / counter, if so.
 		if _, exists := b.ttlMap[node.Value.(*cacheData).k]; exists {
 			delete(b.ttlMap, node.Value.(*cacheData).k)
-			if b.ttlCount > 0 {
-				b.ttlCount--
-			}
+			evicted++
 		}
+
+		// Update the ttlCount.
+		b.decrementTtlCount(evicted)
 	}
+}
+
+// decrementTtlCount decrements the Bicache.ttlCount
+// value by n. This should only be performed within
+// a locked mutex.
+func (b *Bicache) decrementTtlCount(n uint64) {
+	// Prevents some obscure
+	// scenario where ttlCount is
+	// already 0 and we rollover to
+	// uint max.
+	if b.ttlCount-n > b.ttlCount {
+		b.ttlCount = 0
+	} else {
+		b.ttlCount = b.ttlCount - n
+	}
+
+	// Increment the evictions count
+	// by n, regardless.
+	atomic.AddUint64(&b.counters.evictions, n)
 }
