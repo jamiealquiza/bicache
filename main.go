@@ -159,7 +159,13 @@ func (b *Bicache) Stats() *Stats {
 	stats := &Stats{MfuSize: b.mfuCache.Len(), MruSize: b.mruCache.Len()}
 	b.RUnlock()
 
-	stats.MfuUsedP = uint(float64(stats.MfuSize) / float64(b.mfuCap) * 100)
+	// Report 0 if MRU-only mode.
+	if b.mfuCap > 0 {
+		stats.MfuUsedP = uint(float64(stats.MfuSize) / float64(b.mfuCap) * 100)
+	} else {
+		stats.MfuUsedP = 0
+	}
+
 	stats.MruUsedP = uint(float64(stats.MruSize) / float64(b.mruCap) * 100)
 	stats.Hits = atomic.LoadUint64(&b.counters.hits)
 	stats.Misses = atomic.LoadUint64(&b.counters.misses)
