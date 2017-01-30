@@ -133,22 +133,25 @@ func (b *Bicache) SetTtl(k, v interface{}, t int32) {
 // on a key increases the key score.
 func (b *Bicache) Get(k interface{}) interface{} {
 	b.RLock()
-	defer b.RUnlock()
 
 	if n, exists := b.cacheMap[k]; exists {
 		read := n.node.Read()
+
+		b.RUnlock()
 		atomic.AddUint64(&b.counters.hits, 1)
+
 		return read.(*cacheData).v
 	}
 
+	b.RUnlock()
 	atomic.AddUint64(&b.counters.misses, 1)
+
 	return nil
 }
 
 // Del deletes a key.
 func (b *Bicache) Del(k interface{}) {
 	b.Lock()
-	defer b.Unlock()
 
 	if n, exists := b.cacheMap[k]; exists {
 		delete(b.cacheMap, k)
@@ -159,6 +162,8 @@ func (b *Bicache) Del(k interface{}) {
 			b.mfuCache.Remove(n.node)
 		}
 	}
+
+	b.Unlock()
 }
 
 // List returns all key names, states, and scores
