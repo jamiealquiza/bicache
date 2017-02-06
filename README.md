@@ -39,12 +39,12 @@ Increments key score by 1.
 ### Set
 `Set(key, value)` -> sets `key` to `value` (if exists, updates)
 
-Moves key to head of MRU cache.
+Moves key to head of MRU cache. Set can be used to update an existing TTL'd key without affecting the TTL. 
 
 ### SetTtl
 `Set(key, value, ttl)` -> sets `key` to `value` (if exists, updates) with a `ttl` expiration (in seconds)
 
-Moves key to head of MRU cache.
+Moves key to head of MRU cache. Resets `ttl` to value specified.
 
 ### Del
 `Del(key)` -> removes key from cache
