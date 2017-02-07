@@ -318,16 +318,12 @@ func (b *Bicache) PromoteEvict() {
 	// using free slots.
 	if canPromote > 0 {
 		for _, node := range mruToPromoteEvict[:canPromote] {
-			// Create a new node at the tail of the MFU,
-			// copy values, update cacheMap state/reference.
-			newNode := b.mfuCache.PushTail(node.Value)
-			newNode.Score = node.Score
-			// The original key is stored in the cacheData.key
-			// field as the node's Value. This allows a reverse
-			// lookup of a cacheMap entry by node.
-			b.cacheMap[node.Value.(*cacheData).k].state = 1
-			b.cacheMap[node.Value.(*cacheData).k].node = newNode
+			// Remove from the MRU and
+			// push to the MFU tail.
+			// Update cache state.
 			b.mruCache.Remove(node)
+			b.mfuCache.PushTailNode(node)
+			b.cacheMap[node.Value.(*cacheData).k].state = 1
 		}
 
 		// If we were able to promote
@@ -372,20 +368,17 @@ promoteByScore:
 	for _, mruNode := range mruToPromoteEvict[remainderPosition:] {
 		for i, mfuNode := range bottomMfu {
 			if mruNode.Score > mfuNode.Score {
-				// Create a new node at the MRU head,
-				// then copy the evicted MFU node over.
-				newMruNode := b.mruCache.PushHead(mfuNode.Value)
-				newMruNode.Score = mfuNode.Score
-				b.cacheMap[mfuNode.Value.(*cacheData).k].state = 0
-				b.cacheMap[mfuNode.Value.(*cacheData).k].node = newMruNode
+				// Push the evicted MFU node to the head
+				// of the MRU and update state.
 				b.mfuCache.Remove(mfuNode)
+				b.mruCache.PushHeadNode(mfuNode)
+				b.cacheMap[mfuNode.Value.(*cacheData).k].state = 0
 
-				// Promote the MRU node to the MFU.
-				newMfuNode := b.mfuCache.PushTail(mruNode.Value)
-				newMfuNode.Score = mruNode.Score
-				b.cacheMap[mruNode.Value.(*cacheData).k].state = 1
-				b.cacheMap[mruNode.Value.(*cacheData).k].node = newMfuNode
+				// Promote the MRU node to the MFU and
+				// update state.
 				b.mruCache.Remove(mruNode)
+				b.mfuCache.PushTailNode(mruNode)
+				b.cacheMap[mruNode.Value.(*cacheData).k].state = 1
 
 				promotedByScore++
 
