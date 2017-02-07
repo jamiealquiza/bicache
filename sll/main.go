@@ -247,7 +247,7 @@ func (ll *Sll) Remove(n *Node) {
 	// Remove references.
 	n.next, n.prev = nil, nil
 	//Update scores.
-	ll.scores = removeFromScores(ll.scores, n)
+	ll.removeFromScores(n)
 }
 
 // RemoveHead removes the current *Sll.head.
@@ -261,7 +261,7 @@ func (ll *Sll) RemoveTail() {
 }
 
 // removeFromScores removes n from the nodeScoreList scores.
-func removeFromScores(scores nodeScoreList, n *Node) nodeScoreList {
+func (ll *Sll) removeFromScores(n *Node) {
 	// Binary search was demonstrating
 	// incredible latencies (even excluding sort time).
 	// Disabled in favor of an unrolled linear search for now.
@@ -276,40 +276,32 @@ func removeFromScores(scores nodeScoreList, n *Node) nodeScoreList {
 	// element we're searching for somehow doesn't exist
 	// (as a result of some other bug).
 	var i int
-	for p := 0; p < len(scores); p += 5 {
-		if scores[p] == n {
+	for p := 0; p < len(ll.scores); p += 5 {
+		if ll.scores[p] == n {
 			i = p
 			break
 		}
-		if scores[p+1] == n {
+		if ll.scores[p+1] == n {
 			i = p + 1
 			break
 		}
-		if scores[p+2] == n {
+		if ll.scores[p+2] == n {
 			i = p + 2
 			break
 		}
-		if scores[p+3] == n {
+		if ll.scores[p+3] == n {
 			i = p + 3
 			break
 		}
-		if scores[p+4] == n {
+		if ll.scores[p+4] == n {
 			i = p + 4
 			break
 		}
 	}
 
-	newScoreList := make(nodeScoreList, len(scores)-1)
-
-	if i == len(scores)-1 {
-		// If the index is at the tail,
-		// we just exclude the last element.
-		copy(newScoreList, scores)
-
-	} else {
-		copy(newScoreList, scores[:i])
-		copy(newScoreList[i:], scores[i+1:])
-	}
-
-	return newScoreList
+	// Set the item to nil
+	// to remove the reference in the
+	// underlying slice array.
+	ll.scores[i] = nil
+	ll.scores = append(ll.scores[:i], ll.scores[i+1:]...)
 }
