@@ -42,15 +42,16 @@ import (
 // and routing requests to the appropriate cache.
 type Bicache struct {
 	sync.RWMutex
-	cacheMap  map[interface{}]*entry
-	mfuCache  *sll.Sll
-	mruCache  *sll.Sll
-	mfuCap    uint
-	mruCap    uint
-	autoEvict bool
-	ttlCount  uint64
-	ttlMap    map[interface{}]time.Time
-	counters  *Counters
+	cacheMap      map[interface{}]*entry
+	mfuCache      *sll.Sll
+	mruCache      *sll.Sll
+	mfuCap        uint
+	mruCap        uint
+	autoEvict     bool
+	ttlCount      uint64
+	ttlMap        map[interface{}]time.Time
+	counters      *Counters
+	nearestExpire time.Time
 }
 
 // Counters holds Bicache performance
@@ -109,13 +110,14 @@ type Stats struct {
 // an initialized *Bicache.
 func New(c *Config) *Bicache {
 	cache := &Bicache{
-		cacheMap: make(map[interface{}]*entry),
-		mfuCache: sll.New(int(c.MfuSize)),
-		mruCache: sll.New(int(c.MruSize)),
-		mfuCap:   c.MfuSize,
-		mruCap:   c.MruSize,
-		ttlMap:   make(map[interface{}]time.Time),
-		counters: &Counters{},
+		cacheMap:      make(map[interface{}]*entry),
+		mfuCache:      sll.New(int(c.MfuSize)),
+		mruCache:      sll.New(int(c.MruSize)),
+		mfuCap:        c.MfuSize,
+		mruCap:        c.MruSize,
+		ttlMap:        make(map[interface{}]time.Time),
+		counters:      &Counters{},
+		nearestExpire: time.Now(),
 	}
 
 	var start time.Time
@@ -124,18 +126,30 @@ func New(c *Config) *Bicache {
 	// if configured.
 	if c.AutoEvict > 0 {
 		cache.autoEvict = true
+		var evicted int
+		iter := time.Duration(c.AutoEvict)
+
 		go func(b *Bicache) {
-			interval := time.NewTicker(time.Millisecond * time.Duration(c.AutoEvict))
+			interval := time.NewTicker(time.Millisecond * iter)
 			defer interval.Stop()
 
 			for _ = range interval.C {
-				start = time.Now()
 
 				// Run ttl evictions.
-				b.EvictTtl()
+				start = time.Now()
+				evicted = 0
 
-				if c.EvictLog {
-					log.Printf("EvictTtl ran in %s\n", time.Since(start))
+				// At the very first check, nearestExpire
+				// was set to the Bicache initialization time.
+				// This is certain to run at least once.
+				// The first and real nearest expire will be set
+				// in any SetTtl call that's made.
+				if b.nearestExpire.Before(start.Add(iter)) {
+					evicted = b.EvictTtl()
+				}
+
+				if c.EvictLog && evicted > 0 {
+					log.Printf("[EvictTtl] %d keys evicted in %s\n", evicted, time.Since(start))
 				}
 
 				// Run promotions/overflow evictions.
@@ -143,7 +157,7 @@ func New(c *Config) *Bicache {
 				b.PromoteEvict()
 
 				if c.EvictLog {
-					log.Printf("AutoEvict ran in %s\n", time.Since(start))
+					log.Printf("[AutoEvict] completed in %s\n", time.Since(start))
 				}
 			}
 		}(cache)
@@ -175,23 +189,34 @@ func (b *Bicache) Stats() *Stats {
 }
 
 // EvictTtl evicts expired keys using a mark
-// sweep garbage collection.
-func (b *Bicache) EvictTtl() {
+// sweep garbage collection. The number of keys
+// evicted is returned.
+func (b *Bicache) EvictTtl() int {
 	// Return if we have to items with TTLs.
 	if atomic.LoadUint64(&b.ttlCount) == 0 {
-		return
+		return 0
 	}
 
+	// Tracking marked expirations
+	// in a list.
 	expired := list.New()
 
-	// Mark expired entries.
-	// Keys are pushed into a linked list.
+	// Set initial nearest expire.
+	nearestExpire := time.Now().Add(time.Second * 2147483647)
+
 	b.RLock()
 
 	now := time.Now()
 	for k, ttl := range b.ttlMap {
 		if now.After(ttl) {
+			// Add to expired.
 			_ = expired.PushBack(k)
+		} else {
+			// If the key isn't expiring, it is
+			// eligible for the nearest expire value.
+			if ttl.Before(nearestExpire) {
+				nearestExpire = ttl
+			}
 		}
 	}
 
@@ -200,7 +225,7 @@ func (b *Bicache) EvictTtl() {
 	// Lock and evict.
 	b.Lock()
 
-	var evicted uint64
+	var evicted int
 	for k := expired.Front(); k != nil; k = k.Next() {
 		if n, exists := b.cacheMap[k.Value]; exists {
 			delete(b.cacheMap, k.Value)
@@ -216,9 +241,22 @@ func (b *Bicache) EvictTtl() {
 	}
 
 	// Update the ttlCount.
-	b.decrementTtlCount(evicted)
+	b.decrementTtlCount(uint64(evicted))
+
+	// Update the nearest expire.
+	// If the last TTL'd key was just expired,
+	// this will be left at the initially set value
+	// at the top of EvictTtl. This means that the
+	// auto eviction runs will just skip
+	// EvictTtl until a SetTtl creates a real
+	// nearest expire timestamp (since it's checking
+	// if the nearest expire happens within the auto
+	// evict interval).
+	b.nearestExpire = nearestExpire
 
 	b.Unlock()
+
+	return evicted
 }
 
 // PromoteEvict checks if the MRU exceeds the
@@ -228,6 +266,9 @@ func (b *Bicache) EvictTtl() {
 // to the MFU (if possible). Any remaining overflow count
 // is evicted from the tail of the MRU.
 func (b *Bicache) PromoteEvict() {
+	//b.mfuCache.PreSort() // This may require a lock in sll that
+	// would conflict with with a Get score increment.
+
 	b.Lock()
 	defer b.Unlock()
 
@@ -371,7 +412,7 @@ func (b *Bicache) evictFromMruTail(n int) {
 		delete(b.cacheMap, node.Value.(*cacheData).k)
 		b.mruCache.RemoveTail()
 
-		var evicted uint64
+		var evicted int
 
 		// Check if this key existed in the
 		// ttl map. Clean up entry / counter, if so.
@@ -381,7 +422,7 @@ func (b *Bicache) evictFromMruTail(n int) {
 		}
 
 		// Update the ttlCount.
-		b.decrementTtlCount(evicted)
+		b.decrementTtlCount(uint64(evicted))
 	}
 }
 
@@ -394,9 +435,9 @@ func (b *Bicache) decrementTtlCount(n uint64) {
 	// already 0 and we rollover to
 	// uint max.
 	if b.ttlCount-n > b.ttlCount {
-		b.ttlCount = 0
+		atomic.StoreUint64(&b.ttlCount, 0)
 	} else {
-		b.ttlCount = b.ttlCount - n
+		atomic.StoreUint64(&b.ttlCount, b.ttlCount-n)
 	}
 
 	// Increment the evictions count
