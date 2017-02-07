@@ -62,7 +62,7 @@ The MFU can also be set to 0, causing Bicache to behave like a typical MRU/LRU c
 
 ### Auto Eviction
 
-TTL expirations, MRU to MFU promotions, and MRU overflow evictions only occur automatically if the `AutoEvict` configuration parameter is set. This is a background task that only runs if a non-zero parameter is set. If unset or explicitely configured to 0, TTL expirations never run and MRU promotions and evictions will be performed at each Set operation.
+TTL expirations, MRU to MFU promotions, and MRU overflow evictions only occur automatically if the `AutoEvict` configuration parameter is set. This is a background task that only runs if a non-zero parameter is set. If unset or explicitly configured to 0, TTL expirations never run and MRU promotions and evictions will be performed at each Set operation.
 
 The Bicache `EvictLog` configuratio parameter specifies whether or not eviction timing logs are emitted.
 
