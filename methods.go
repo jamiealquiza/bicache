@@ -97,7 +97,8 @@ func (b *Bicache) SetTtl(k, v interface{}, t int32) {
 	b.Lock()
 
 	// Set TTL expiration
-	b.ttlMap[k] = time.Now().Add(time.Second * time.Duration(t))
+	expiration := time.Now().Add(time.Second * time.Duration(t))
+	b.ttlMap[k] = expiration
 
 	// Increment TTL counter.
 	atomic.AddUint64(&b.ttlCount, 1)
@@ -118,6 +119,11 @@ func (b *Bicache) SetTtl(k, v interface{}, t int32) {
 		b.cacheMap[k] = &entry{
 			node: b.mruCache.PushHead(&cacheData{k: k, v: v}),
 		}
+	}
+
+	// Update the nearest expire.
+	if expiration.Before(b.nearestExpire) {
+		b.nearestExpire = expiration
 	}
 
 	b.Unlock()
