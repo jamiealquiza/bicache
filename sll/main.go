@@ -220,6 +220,26 @@ func (ll *Sll) PushTail(v interface{}) *Node {
 	return n
 }
 
+// PushHeadNode pushes an existing node
+// to the head of the *Sll.
+func (ll *Sll) PushHeadNode(n *Node) {
+	n.list = ll
+
+	// Add to scores and insert.
+	ll.scores = append(ll.scores, n)
+	insertAt(n, ll.root.prev)
+}
+
+// PushTailNode pushes an existing node
+// to the tail of the *Sll.
+func (ll *Sll) PushTailNode(n *Node) {
+	n.list = ll
+
+	// Add to scores and insert.
+	ll.scores = append(ll.scores, n)
+	insertAt(n, ll.root)
+}
+
 // Remove removes a *Node from the *Sll.
 func (ll *Sll) Remove(n *Node) {
 	// Link next/prev nodes.
