@@ -1,6 +1,6 @@
 # Bicached
 
-Bicache server. Super crude / WIP.
+Bicache server. Super crude / WIP toy server used purely for playing around with the Bicache API.
 
 # Install
 Tested with Go 1.7.
