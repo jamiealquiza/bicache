@@ -93,8 +93,7 @@ func (ll *Sll) Tail() *Node {
 
 // HighScores takes an integer and returns the
 // respective number of *Nodes with the higest scores
-// sorted in ascending order. The last element will
-// be the node with the highest score.
+// sorted in ascending order.
 func (ll *Sll) HighScores(r int) nodeScoreList {
 	sort.Sort(ll.scores)
 	// Return what's available
@@ -117,8 +116,7 @@ func (ll *Sll) HighScores(r int) nodeScoreList {
 
 // LowScores takes an integer and returns the
 // respective number of *Nodes with the lowest scores
-// sorted in ascending order. The first element will
-// be the node with the lowest score.
+// sorted in ascending order.
 func (ll *Sll) LowScores(r int) nodeScoreList {
 	sort.Sort(ll.scores)
 	// Return what's available
