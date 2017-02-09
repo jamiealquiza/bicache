@@ -13,12 +13,12 @@ type Sll struct {
 
 // Node is a scored linked list node.
 type Node struct {
-	next  *Node
-	prev  *Node
-	list  *Sll
-	Score uint64
-	Value interface{}
-	// Might add a create field for TTL.
+	next   *Node
+	prev   *Node
+	list   *Sll
+	Score  uint64
+	Value  interface{}
+	remove bool
 }
 
 func (n *Node) Next() *Node {
@@ -93,8 +93,7 @@ func (ll *Sll) Tail() *Node {
 
 // HighScores takes an integer and returns the
 // respective number of *Nodes with the higest scores
-// sorted in ascending order. The last element will
-// be the node with the highest score.
+// sorted in ascending order.
 func (ll *Sll) HighScores(r int) nodeScoreList {
 	sort.Sort(ll.scores)
 	// Return what's available
@@ -117,8 +116,7 @@ func (ll *Sll) HighScores(r int) nodeScoreList {
 
 // LowScores takes an integer and returns the
 // respective number of *Nodes with the lowest scores
-// sorted in ascending order. The first element will
-// be the node with the lowest score.
+// sorted in ascending order.
 func (ll *Sll) LowScores(r int) nodeScoreList {
 	sort.Sort(ll.scores)
 	// Return what's available
@@ -250,6 +248,23 @@ func (ll *Sll) Remove(n *Node) {
 	ll.removeFromScores(n)
 }
 
+// RemoveAsync removes a *Node from the *Sll
+// and marks the node for removal. This is
+// useful if a batch of many nodes are being
+// removed, at the cost of the node score list
+// being out of sync.
+// The node score list must be updated
+// with a subsequent call of the Sync() method
+// once all desired nodes have been removed.
+func (ll *Sll) RemoveAsync(n *Node) {
+	// Link next/prev nodes.
+	n.next.prev, n.prev.next = n.prev, n.next
+	// Remove references.
+	n.next, n.prev = nil, nil
+	// Mark.
+	n.remove = true
+}
+
 // RemoveHead removes the current *Sll.head.
 func (ll *Sll) RemoveHead() {
 	ll.Remove(ll.root.prev)
@@ -258,6 +273,42 @@ func (ll *Sll) RemoveHead() {
 // RemoveTail removes the current *Sll.tail.s
 func (ll *Sll) RemoveTail() {
 	ll.Remove(ll.root.next)
+}
+
+// RemoveHeadAsync removes the current *Sll.head
+// using the RemoveAsync method.
+func (ll *Sll) RemoveHeadAsync() {
+	ll.RemoveAsync(ll.root.prev)
+}
+
+// RemoveTailAsync removes the current *Sll.tail
+// using the RemoveAsync method.
+func (ll *Sll) RemoveTailAsync() {
+	ll.RemoveAsync(ll.root.next)
+}
+
+// Sync traverses the node score list
+// and removes any marked for removal.
+// This is typically called subsequent to
+// many AsyncRemove ops.
+func (ll *Sll) Sync() {
+	// Prep an allocation-free filter slice.
+	newScoreList := ll.scores[:0]
+
+	// Traverse and exclude nodes
+	// marked for removal.
+	for n := range ll.scores {
+		if !ll.scores[n].remove {
+			newScoreList = append(newScoreList, ll.scores[n])
+		} else {
+			// If a node is marked for removal,
+			// nil the entry to avoid leaks.
+			ll.scores[n] = nil
+		}
+	}
+
+	// Update the ll.scores.
+	ll.scores = newScoreList
 }
 
 // removeFromScores removes n from the nodeScoreList scores.
