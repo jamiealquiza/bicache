@@ -277,6 +277,18 @@ func (ll *Sll) RemoveTail() {
 	ll.Remove(ll.root.next)
 }
 
+// RemoveHeadAsync removes the current *Sll.head
+// using the RemoveAsync method.
+func (ll *Sll) RemoveHeadAsync() {
+	ll.RemoveAsync(ll.root.prev)
+}
+
+// RemoveTailAsync removes the current *Sll.tail
+// using the RemoveAsync method.
+func (ll *Sll) RemoveTailAsync() {
+	ll.RemoveAsync(ll.root.next)
+}
+
 // Sync traverses the node score list
 // and removes any marked for removal.
 // This is typically called subsequent to
