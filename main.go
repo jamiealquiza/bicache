@@ -232,16 +232,21 @@ func (b *Bicache) EvictTtl() int {
 			delete(b.ttlMap, k.Value)
 			switch n.state {
 			case 0:
-				b.mruCache.Remove(n.node)
+				b.mruCache.RemoveAsync(n.node)
 			case 1:
-				b.mfuCache.Remove(n.node)
+				b.mfuCache.RemoveAsync(n.node)
 			}
 			evicted++
 		}
 	}
 
-	// Update the ttlCount.
-	b.decrementTtlCount(uint64(evicted))
+	// Sync the MRU and MFU
+	// in parallel.
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go bgSync(&wg, b.mruCache)
+	go bgSync(&wg, b.mfuCache)
+	wg.Wait()
 
 	// Update the nearest expire.
 	// If the last TTL'd key was just expired,
@@ -255,6 +260,9 @@ func (b *Bicache) EvictTtl() int {
 	b.nearestExpire = nearestExpire
 
 	b.Unlock()
+
+	// Update eviction counters.
+	b.decrementTtlCount(uint64(evicted))
 
 	return evicted
 }
@@ -410,8 +418,8 @@ promoteByScore:
 	// Sync the MRU and MFU
 	// in parallel.
 	wg.Add(2)
-	go bgSync(wg, b.mruCache)
-	go bgSync(wg, b.mfuCache)
+	go bgSync(&wg, b.mruCache)
+	go bgSync(&wg, b.mfuCache)
 	wg.Wait()
 
 evictFromMruTail:
@@ -425,12 +433,11 @@ evictFromMruTail:
 // evictFromMruTail evicts n keys from the tail
 // of the MRU cache.
 func (b *Bicache) evictFromMruTail(n int) {
+	var ttlEvicted int
 	for i := 0; i < n; i++ {
 		node := b.mruCache.Tail()
 		delete(b.cacheMap, node.Value.(*cacheData).k)
 		b.mruCache.RemoveTailAsync()
-
-		var ttlEvicted int
 
 		// Check if this key existed in the
 		// ttl map. Clean up entry / counter, if so.
@@ -438,13 +445,14 @@ func (b *Bicache) evictFromMruTail(n int) {
 			delete(b.ttlMap, node.Value.(*cacheData).k)
 			ttlEvicted++
 		}
-
-		// Update the ttlCount.
-		b.decrementTtlCount(uint64(ttlEvicted))
 	}
 
+	// Update the ttlCount.
+	b.decrementTtlCount(uint64(ttlEvicted))
 	// Update eviction count.
-	atomic.AddUint64(&b.counters.evictions, uint64(n))
+	// Excludes TTL evictions since the
+	// decrementTtlCount handles that for us.
+	atomic.AddUint64(&b.counters.evictions, uint64(n-ttlEvicted))
 
 	// Sync the MRU.
 	b.mruCache.Sync()
@@ -471,7 +479,7 @@ func (b *Bicache) decrementTtlCount(n uint64) {
 
 // Sll Sync handler with a WaitGroup
 // for background parallelization.
-func bgSync(wg sync.WaitGroup, s *sll.Sll) {
+func bgSync(wg *sync.WaitGroup, s *sll.Sll) {
 	s.Sync()
 	wg.Done()
 }
