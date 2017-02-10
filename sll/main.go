@@ -13,12 +13,11 @@ type Sll struct {
 
 // Node is a scored linked list node.
 type Node struct {
-	next   *Node
-	prev   *Node
-	list   *Sll
-	Score  uint64
-	Value  interface{}
-	remove bool
+	next  *Node
+	prev  *Node
+	list  *Sll
+	Score uint64
+	Value interface{}
 }
 
 func (n *Node) Next() *Node {
@@ -261,8 +260,10 @@ func (ll *Sll) RemoveAsync(n *Node) {
 	n.next.prev, n.prev.next = n.prev, n.next
 	// Remove references.
 	n.next, n.prev = nil, nil
-	// Mark.
-	n.remove = true
+	// Unset the parent list.
+	// This is used as a removal marker
+	// in the Sync() function.
+	n.list = nil
 }
 
 // RemoveHead removes the current *Sll.head.
@@ -298,7 +299,7 @@ func (ll *Sll) Sync() {
 	// Traverse and exclude nodes
 	// marked for removal.
 	for n := range ll.scores {
-		if !ll.scores[n].remove {
+		if ll.scores[n].list == ll {
 			newScoreList = append(newScoreList, ll.scores[n])
 		} else {
 			// If a node is marked for removal,
