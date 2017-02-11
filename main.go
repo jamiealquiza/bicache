@@ -134,7 +134,6 @@ func New(c *Config) *Bicache {
 			defer interval.Stop()
 
 			for _ = range interval.C {
-
 				// Run ttl evictions.
 				start = time.Now()
 				evicted = 0
@@ -433,21 +432,17 @@ evictFromMruTail:
 // evictFromMruTail evicts n keys from the tail
 // of the MRU cache.
 func (b *Bicache) evictFromMruTail(n int) {
-	var ttlEvicted int
+	ttlStart := len(b.ttlMap)
+
 	for i := 0; i < n; i++ {
 		node := b.mruCache.Tail()
 		delete(b.cacheMap, node.Value.(*cacheData).k)
+		delete(b.ttlMap, node.Value.(*cacheData).k)
 		b.mruCache.RemoveTailAsync()
-
-		// Check if this key existed in the
-		// ttl map. Clean up entry / counter, if so.
-		if _, exists := b.ttlMap[node.Value.(*cacheData).k]; exists {
-			delete(b.ttlMap, node.Value.(*cacheData).k)
-			ttlEvicted++
-		}
 	}
 
 	// Update the ttlCount.
+	ttlEvicted := ttlStart - len(b.ttlMap)
 	b.decrementTtlCount(uint64(ttlEvicted))
 	// Update eviction count.
 	// Excludes TTL evictions since the
