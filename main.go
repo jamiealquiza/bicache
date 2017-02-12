@@ -274,11 +274,11 @@ func (b *Bicache) evictTtl() int {
 // is evicted from the tail of the MRU.
 func (b *Bicache) promoteEvict() {
 	b.Lock()
-	defer b.Unlock()
 
 	// How far over MRU capacity are we?
 	mruOverflow := int(b.mruCache.Len() - b.mruCap)
 	if mruOverflow <= 0 {
+		b.Unlock()
 		return
 	}
 
@@ -287,6 +287,7 @@ func (b *Bicache) promoteEvict() {
 	if b.mfuCap == 0 {
 		b.evictFromMruTail(mruOverflow)
 		b.mruCache.Sync()
+		b.Unlock()
 		return
 	}
 
@@ -346,6 +347,7 @@ func (b *Bicache) promoteEvict() {
 		if promoted == mruOverflow {
 			// Synchronize the MRU cache.
 			b.mruCache.Sync()
+			b.Unlock()
 			return
 		}
 	}
@@ -384,6 +386,7 @@ promoteByScore:
 	// rest would fail. Need to add an additional short circuit
 	// assuming we enter the promote by score routine.
 	if len(bottomMfu) == 0 || bottomMfu[0].Score >= mruToPromoteEvict[remainderPosition].Score {
+		b.Unlock()
 		goto evictFromMruTail
 	}
 
@@ -414,13 +417,20 @@ promoteByScore:
 
 	}
 
+	b.Unlock()
+
 evictFromMruTail:
+
+	b.Lock()
+
 	// What's the overflow remainder count?
 	toEvict := mruOverflow - promotedByScore
 	// Evict this many from the MRU tail.
 	if toEvict > 0 {
 		b.evictFromMruTail(toEvict)
 	}
+
+	b.Unlock()
 
 	// Sync the MRU and MFU
 	// in parallel.
