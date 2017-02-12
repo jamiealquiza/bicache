@@ -50,13 +50,13 @@ type Bicache struct {
 	autoEvict     bool
 	ttlCount      uint64
 	ttlMap        map[interface{}]time.Time
-	counters      *Counters
+	counters      *counters
 	nearestExpire time.Time
 }
 
 // Counters holds Bicache performance
 // data.
-type Counters struct {
+type counters struct {
 	hits      uint64
 	misses    uint64
 	evictions uint64
@@ -116,7 +116,7 @@ func New(c *Config) *Bicache {
 		mfuCap:        c.MfuSize,
 		mruCap:        c.MruSize,
 		ttlMap:        make(map[interface{}]time.Time),
-		counters:      &Counters{},
+		counters:      &counters{},
 		nearestExpire: time.Now(),
 	}
 
@@ -144,7 +144,7 @@ func New(c *Config) *Bicache {
 				// The first and real nearest expire will be set
 				// in any SetTtl call that's made.
 				if b.nearestExpire.Before(start.Add(iter)) {
-					evicted = b.EvictTtl()
+					evicted = b.evictTtl()
 				}
 
 				if c.EvictLog && evicted > 0 {
@@ -153,7 +153,7 @@ func New(c *Config) *Bicache {
 
 				// Run promotions/overflow evictions.
 				start = time.Now()
-				b.PromoteEvict()
+				b.promoteEvict()
 
 				if c.EvictLog {
 					log.Printf("[AutoEvict] completed in %s\n", time.Since(start))
@@ -187,10 +187,10 @@ func (b *Bicache) Stats() *Stats {
 	return stats
 }
 
-// EvictTtl evicts expired keys using a mark
+// evictTtl evicts expired keys using a mark
 // sweep garbage collection. The number of keys
 // evicted is returned.
-func (b *Bicache) EvictTtl() int {
+func (b *Bicache) evictTtl() int {
 	// Return if we have to items with TTLs.
 	if atomic.LoadUint64(&b.ttlCount) == 0 {
 		return 0
@@ -250,9 +250,9 @@ func (b *Bicache) EvictTtl() int {
 	// Update the nearest expire.
 	// If the last TTL'd key was just expired,
 	// this will be left at the initially set value
-	// at the top of EvictTtl. This means that the
+	// at the top of evictTtl. This means that the
 	// auto eviction runs will just skip
-	// EvictTtl until a SetTtl creates a real
+	// evictTtl until a SetTtl creates a real
 	// nearest expire timestamp (since it's checking
 	// if the nearest expire happens within the auto
 	// evict interval).
@@ -266,13 +266,13 @@ func (b *Bicache) EvictTtl() int {
 	return evicted
 }
 
-// PromoteEvict checks if the MRU exceeds the
+// promoteEvict checks if the MRU exceeds the
 // Config.MruSize (overflow count) If so, the top <overflow count>
 // MRU scores are checked against the MFU. If any of the top MRU scores
 // are greater than the lowest MFU scores, they are promoted
 // to the MFU (if possible). Any remaining overflow count
 // is evicted from the tail of the MRU.
-func (b *Bicache) PromoteEvict() {
+func (b *Bicache) promoteEvict() {
 	b.Lock()
 	defer b.Unlock()
 

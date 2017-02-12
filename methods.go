@@ -84,10 +84,10 @@ func (b *Bicache) Set(k, v interface{}) {
 
 	b.Unlock()
 
-	// PromoteEvict on write if it's
+	// promoteEvict on write if it's
 	// not being handled automatically.
 	if !b.autoEvict {
-		b.PromoteEvict()
+		b.promoteEvict()
 	}
 }
 
@@ -128,10 +128,10 @@ func (b *Bicache) SetTtl(k, v interface{}, t int32) {
 
 	b.Unlock()
 
-	// PromoteEvict on write if it's
+	// promoteEvict on write if it's
 	// not being handled automatically.
 	if !b.autoEvict {
-		b.PromoteEvict()
+		b.promoteEvict()
 	}
 }
 
