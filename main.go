@@ -286,6 +286,7 @@ func (b *Bicache) PromoteEvict() {
 	// LRU-only behavior.
 	if b.mfuCap == 0 {
 		b.evictFromMruTail(mruOverflow)
+		b.mruCache.Sync()
 		return
 	}
 
@@ -340,12 +341,11 @@ func (b *Bicache) PromoteEvict() {
 			promoted++
 		}
 
-		// Synchronize the MRU cache.
-		b.mruCache.Sync()
-
 		// If we were able to promote
 		// all the overflow, return.
 		if promoted == mruOverflow {
+			// Synchronize the MRU cache.
+			b.mruCache.Sync()
 			return
 		}
 	}
@@ -414,19 +414,20 @@ promoteByScore:
 
 	}
 
+evictFromMruTail:
+	// What's the overflow remainder count?
+	toEvict := mruOverflow - promotedByScore
+	// Evict this many from the MRU tail.
+	if toEvict > 0 {
+		b.evictFromMruTail(toEvict)
+	}
+
 	// Sync the MRU and MFU
 	// in parallel.
 	wg.Add(2)
 	go bgSync(&wg, b.mruCache)
 	go bgSync(&wg, b.mfuCache)
 	wg.Wait()
-
-evictFromMruTail:
-	// What's the overflow remainder count?
-	toEvict := mruOverflow - promotedByScore
-	// Evict this many from the MRU tail.
-	b.evictFromMruTail(toEvict)
-
 }
 
 // evictFromMruTail evicts n keys from the tail
@@ -448,9 +449,6 @@ func (b *Bicache) evictFromMruTail(n int) {
 	// Excludes TTL evictions since the
 	// decrementTtlCount handles that for us.
 	atomic.AddUint64(&b.counters.evictions, uint64(n-ttlEvicted))
-
-	// Sync the MRU.
-	b.mruCache.Sync()
 }
 
 // decrementTtlCount decrements the Bicache.ttlCount
