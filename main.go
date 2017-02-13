@@ -151,6 +151,12 @@ func New(c *Config) *Bicache {
 					log.Printf("[EvictTtl] %d keys evicted in %s\n", evicted, time.Since(start))
 				}
 
+				var wg sync.WaitGroup
+				wg.Add(2)
+				go b.mruCache.Presort(&wg)
+				go b.mfuCache.Presort(&wg)
+
+				wg.Wait()
 				// Run promotions/overflow evictions.
 				start = time.Now()
 				b.promoteEvict()
@@ -273,27 +279,35 @@ func (b *Bicache) evictTtl() int {
 // to the MFU (if possible). Any remaining overflow count
 // is evicted from the tail of the MRU.
 func (b *Bicache) promoteEvict() {
-	b.Lock()
-
 	// How far over MRU capacity are we?
 	mruOverflow := int(b.mruCache.Len() - b.mruCap)
 	if mruOverflow <= 0 {
-		b.Unlock()
 		return
 	}
 
 	// If MFU cap is 0, shortcut to
 	// LRU-only behavior.
 	if b.mfuCap == 0 {
+		b.Lock()
 		b.evictFromMruTail(mruOverflow)
-		b.mruCache.Sync()
 		b.Unlock()
+
+		b.RLock()
+		b.mruCache.Sync()
+		b.RUnlock()
 		return
 	}
 
 	// Get the top n MRU elements
 	// where n = MRU capacity overflow.
 	mruToPromoteEvict := b.mruCache.HighScores(mruOverflow)
+
+	// HighScores is expensive.
+	// Get lock immediately after.
+	// May want to sanity check that
+	// keys weren't removed during.
+	b.Lock()
+
 	// Reverse into descending order.
 	sort.Sort(sort.Reverse(mruToPromoteEvict))
 
@@ -319,6 +333,7 @@ func (b *Bicache) promoteEvict() {
 	// If the MFU is already full,
 	// we can skip the next block.
 	if canPromote == 0 {
+		b.Unlock()
 		goto promoteByScore
 	}
 
@@ -345,15 +360,16 @@ func (b *Bicache) promoteEvict() {
 		// If we were able to promote
 		// all the overflow, return.
 		if promoted == mruOverflow {
-			// Synchronize the MRU cache.
-			b.mruCache.Sync()
 			b.Unlock()
+			// Synchronize the MRU cache.
+			b.RLock()
+			b.mruCache.Sync()
+			b.RUnlock()
 			return
 		}
 	}
 
 promoteByScore:
-
 	// Get a remainder to either promote by score
 	// to the MFU or ultimately evict from the MRU.
 	mruOverflow -= promoted
@@ -379,18 +395,14 @@ promoteByScore:
 
 	// If the lowest MFU score is higher than the lowest
 	// score to promote, none of these are eligible.
-	// Promoting by score is an expensive operation,
-	// it's desireable to skip if possible.
-	// TODO it may be possible that a batch of many items
-	// from the MRU overflow is elgible by score, where the
-	// rest would fail. Need to add an additional short circuit
-	// assuming we enter the promote by score routine.
 	if len(bottomMfu) == 0 || bottomMfu[0].Score >= mruToPromoteEvict[remainderPosition].Score {
 		b.Unlock()
 		goto evictFromMruTail
 	}
 
 	// Otherwise, scan for a replacement.
+	b.Lock()
+scorePromote:
 	for _, mruNode := range mruToPromoteEvict[remainderPosition:] {
 		for i, mfuNode := range bottomMfu {
 			if mruNode.Score > mfuNode.Score {
@@ -413,6 +425,9 @@ promoteByScore:
 				bottomMfu = append(bottomMfu[:i], bottomMfu[i+1:]...)
 				break
 			}
+			if i == len(bottomMfu)-1 {
+				break scorePromote
+			}
 		}
 
 	}
@@ -434,10 +449,12 @@ evictFromMruTail:
 
 	// Sync the MRU and MFU
 	// in parallel.
+	b.RLock()
 	wg.Add(2)
 	go bgSync(&wg, b.mruCache)
 	go bgSync(&wg, b.mfuCache)
 	wg.Wait()
+	b.RUnlock()
 }
 
 // evictFromMruTail evicts n keys from the tail
