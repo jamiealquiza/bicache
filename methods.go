@@ -22,7 +22,7 @@
 package bicache
 
 import (
-	"sort"
+	//"sort"
 	"sync/atomic"
 	"time"
 )
@@ -30,7 +30,7 @@ import (
 // keyInfo holds a key name, state (0: MRU, 1: MRU)
 // and cache score.
 type KeyInfo struct {
-	Key   interface{}
+	Key string
 	State uint8
 	Score uint64
 }
@@ -66,42 +66,46 @@ func (lr ListResults) Swap(i, j int) {
 // Set takes a key and value and creates
 // and entry in the MRU cache. If the key
 // already exists, the value is updated.
-func (b *Bicache) Set(k, v interface{}) {
-	b.Lock()
+func (b *Bicache) Set(k string, v interface{}) {
+	s := b.shards[b.getShard(k)]
+
+	s.Lock()
 	// If the entry exists, update. If not,
 	// create at the tail of the MRU cache.
-	if n, exists := b.cacheMap[k]; exists {
-		n.node.Value.(*cacheData).v = v
-		if n.state == 0 {
-			b.mruCache.MoveToHead(n.node)
+	if n, exists := s.cacheMap[k]; !exists {
+		// Create at the MRU tail.
+		s.cacheMap[k] = &entry{
+			node: s.mruCache.PushHead(&cacheData{k: k, v: v}),
 		}
 	} else {
-		// Create at the MRU tail.
-		b.cacheMap[k] = &entry{
-			node: b.mruCache.PushHead(&cacheData{k: k, v: v}),
+		n.node.Value.(*cacheData).v = v
+		if n.state == 0 {
+			s.mruCache.MoveToHead(n.node)
 		}
 	}
 
-	b.Unlock()
+	s.Unlock()
 
 	// promoteEvict on write if it's
 	// not being handled automatically.
 	if !b.autoEvict {
-		b.promoteEvict()
+		s.promoteEvict()
 	}
 }
 
 // SetTtl is the same as set but accepts a
 // parameter t to specify a TTL in seconds.
-func (b *Bicache) SetTtl(k, v interface{}, t int32) {
-	b.Lock()
+func (b *Bicache) SetTtl(k string, v interface{}, t int32) {
+	s := b.shards[b.getShard(k)]
+
+	s.Lock()
 
 	// Set TTL expiration
 	expiration := time.Now().Add(time.Second * time.Duration(t))
-	b.ttlMap[k] = expiration
+	s.ttlMap[k] = expiration
 
 	// Increment TTL counter.
-	atomic.AddUint64(&b.ttlCount, 1)
+	atomic.AddUint64(&s.ttlCount, 1)
 
 	// Proceed to normal Set operation.
 	// This logic is duplicated for now
@@ -109,82 +113,85 @@ func (b *Bicache) SetTtl(k, v interface{}, t int32) {
 
 	// If the entry exists, update. If not,
 	// create at the tail of the MRU cache.
-	if n, exists := b.cacheMap[k]; exists {
-		n.node.Value.(*cacheData).v = v
-		if n.state == 0 {
-			b.mruCache.MoveToHead(n.node)
+	if n, exists := s.cacheMap[k]; !exists {
+		// Create at the MRU tail.
+		s.cacheMap[k] = &entry{
+			node: s.mruCache.PushHead(&cacheData{k: k, v: v}),
 		}
 	} else {
-		// Create at the MRU tail.
-		b.cacheMap[k] = &entry{
-			node: b.mruCache.PushHead(&cacheData{k: k, v: v}),
+		n.node.Value.(*cacheData).v = v
+		if n.state == 0 {
+			s.mruCache.MoveToHead(n.node)
 		}
 	}
 
 	// Update the nearest expire.
-	if expiration.Before(b.nearestExpire) {
-		b.nearestExpire = expiration
+	if expiration.Before(s.nearestExpire) {
+		s.nearestExpire = expiration
 	}
 
-	b.Unlock()
+	s.Unlock()
 
 	// promoteEvict on write if it's
 	// not being handled automatically.
 	if !b.autoEvict {
-		b.promoteEvict()
+		s.promoteEvict()
 	}
 }
 
 // Get takes a key and returns the value. Every get
 // on a key increases the key score.
-func (b *Bicache) Get(k interface{}) interface{} {
-	b.RLock()
+func (b *Bicache) Get(k string) interface{} { 
+	s := b.shards[b.getShard(k)]
 
-	if n, exists := b.cacheMap[k]; exists {
+	s.RLock()
+
+	if n, exists := s.cacheMap[k]; exists {
 		read := n.node.Read()
 
-		b.RUnlock()
-		atomic.AddUint64(&b.counters.hits, 1)
+		s.RUnlock()
+		atomic.AddUint64(&s.counters.hits, 1)
 
 		return read.(*cacheData).v
 	}
 
-	b.RUnlock()
-	atomic.AddUint64(&b.counters.misses, 1)
+	s.RUnlock()
+	atomic.AddUint64(&s.counters.misses, 1)
 
 	return nil
 }
 
 // Del deletes a key.
-func (b *Bicache) Del(k interface{}) {
-	b.Lock()
+func (b *Bicache) Del(k string) {
+	s := b.shards[b.getShard(k)]
 
-	if n, exists := b.cacheMap[k]; exists {
-		delete(b.cacheMap, k)
-		delete(b.ttlMap, k)
+	s.Lock()
+
+	if n, exists := s.cacheMap[k]; exists {
+		delete(s.cacheMap, k)
+		delete(s.ttlMap, k)
 		switch n.state {
 		case 0:
-			b.mruCache.Remove(n.node)
+			s.mruCache.Remove(n.node)
 		case 1:
-			b.mfuCache.Remove(n.node)
+			s.mfuCache.Remove(n.node)
 		}
 	}
 
-	b.Unlock()
+	s.Unlock()
 }
 
 // List returns all key names, states, and scores
 // sorted in descending order by score. Returns n
 // top restults.
+/*
 func (b *Bicache) List(n int) ListResults {
-	b.RLock()
-
 	// Make a ListResults large enough to hold the
 	// number of cache items present in both cache tiers.
-	lr := make(ListResults, b.mruCache.Len()+b.mfuCache.Len())
+	lr := make(ListResults, s.mruCache.Len()+s.mfuCache.Len())
 
 	var i int
-	for k, v := range b.cacheMap {
+	for k, v := range s.cacheMap {
 		lr[i] = &KeyInfo{
 			Key:   k,
 			State: v.state,
@@ -192,8 +199,6 @@ func (b *Bicache) List(n int) ListResults {
 		}
 		i++
 	}
-
-	b.RUnlock()
 
 	sort.Sort(lr)
 	// return the number
@@ -203,4 +208,12 @@ func (b *Bicache) List(n int) ListResults {
 	}
 
 	return lr
+}
+*/
+
+func (b *Bicache) getShard(k string) int {
+	b.h.Write([]byte(k))
+	i := int(b.h.Sum64() % 256)
+	b.h.Reset()
+	return i
 }

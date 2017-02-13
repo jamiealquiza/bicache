@@ -2,7 +2,7 @@ package main
 
 import (
 	"bufio"
-	"bytes"
+	//"bytes"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -30,16 +30,16 @@ var (
 		"set":    set,
 		"setttl": setTtl,
 		"del":    del,
-		"list":   list,
+		//"list":   list,
 	}
 )
 
 func main() {
 	// Initialize settings.
 	var address = flag.String("listen", "localhost:9090", "listen address")
-	var mfuSize = flag.Uint("mfu", 256, "MFU cache size")
-	var mruSize = flag.Uint("mru", 64, "MRU cache size")
-	var evictInterval = flag.Uint("evict-interval", 1000, "Eviction interval in ms")
+	var mfuSize = flag.Uint("mfu", 512, "MFU cache size")
+	var mruSize = flag.Uint("mru", 1024, "MRU cache size")
+	var evictInterval = flag.Uint("evict-interval", 10000, "Eviction interval in ms")
 	var evictLog = flag.Bool("evict-log", true, "log eviction times")
 	flag.Parse()
 
@@ -174,6 +174,7 @@ func del(c *bicache.Bicache, r *Request) string {
 }
 
 // Bicache List method.
+/*
 func list(c *bicache.Bicache, r *Request) string {
 	limit, err := strconv.Atoi(r.params)
 	if err != nil {
@@ -192,4 +193,4 @@ func list(c *bicache.Bicache, r *Request) string {
 	}
 
 	return string(b.Bytes())
-}
+}*/

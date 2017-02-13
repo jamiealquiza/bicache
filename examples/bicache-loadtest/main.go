@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/rand"
 	"time"
+	"strconv"
 
 	"github.com/jamiealquiza/bicache"
 	"github.com/jamiealquiza/tachymeter"
@@ -59,11 +60,11 @@ func main() {
 func readerWriter(c *bicache.Bicache, rt, wt *tachymeter.Tachymeter, max int) {
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	var start time.Time
-	var k int
+	var k string
 	var v interface{}
 	for {
+		k = strconv.Itoa(r.Intn(max))
 		time.Sleep(3 * time.Millisecond)
-		k = r.Intn(max)
 		start = time.Now()
 		v = c.Get(k)
 
