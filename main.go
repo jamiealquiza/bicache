@@ -38,9 +38,10 @@ import (
 
 // Bicache is a bicache.
 type Bicache struct {
-	shards    [256]*Shard
-	autoEvict bool
-	h         hash.Hash64
+	shards     []*Shard
+	h          hash.Hash64
+	autoEvict  bool
+	ShardCount int
 }
 
 // Shard implements a cache unit
@@ -76,10 +77,11 @@ type counters struct {
 // defers the operation until each Set is called
 // on the bicache.
 type Config struct {
-	MfuSize   uint
-	MruSize   uint
-	AutoEvict uint
-	EvictLog  bool
+	MfuSize    uint
+	MruSize    uint
+	AutoEvict  uint
+	EvictLog   bool
+	ShardCount int
 }
 
 // Entry is a container type for scored
@@ -114,14 +116,19 @@ type Stats struct {
 // New takes a *Config and returns
 // an initialized *Shard.
 func New(c *Config) *Bicache {
-	var shards [256]*Shard
+	// Check that ShardCount is a power of 2.
+	if (c.ShardCount & (c.ShardCount - 1)) == 0 {
+		return nil
+	}
+
+	shards := make([]*Shard, c.ShardCount)
 
 	// Get cache sizes for each shard.
-	mfuSize := int(math.Ceil(float64(c.MfuSize) / float64(256)))
-	mruSize := int(math.Ceil(float64(c.MruSize) / float64(256)))
+	mfuSize := int(math.Ceil(float64(c.MfuSize) / float64(c.ShardCount)))
+	mruSize := int(math.Ceil(float64(c.MruSize) / float64(c.ShardCount)))
 
 	// Init shards.
-	for i := 0; i < 256; i++ {
+	for i := 0; i < c.ShardCount; i++ {
 		shards[i] = &Shard{
 			cacheMap:      make(map[string]*entry),
 			mfuCache:      sll.New(mfuSize),
@@ -144,8 +151,8 @@ func New(c *Config) *Bicache {
 	// for handling promotions and evictions,
 	// if configured.
 	if c.AutoEvict > 0 {
-		ttlTachy := tachymeter.New(&tachymeter.Config{Size: 256})
-		promoTachy := tachymeter.New(&tachymeter.Config{Size: 256})
+		ttlTachy := tachymeter.New(&tachymeter.Config{Size: c.ShardCount})
+		promoTachy := tachymeter.New(&tachymeter.Config{Size: c.ShardCount})
 
 		cache.autoEvict = true
 		var evicted int

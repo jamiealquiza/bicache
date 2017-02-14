@@ -45,10 +45,11 @@ func main() {
 
 	// Instantiate Bicache.
 	cache := bicache.New(&bicache.Config{
-		MfuSize:   *mfuSize,
-		MruSize:   *mruSize,
-		AutoEvict: *evictInterval,
-		EvictLog:  *evictLog,
+		MfuSize:    *mfuSize,
+		MruSize:    *mruSize,
+		AutoEvict:  *evictInterval,
+		EvictLog:   *evictLog,
+		ShardCount: 512,
 	})
 
 	// Log Bicache stats on interval.

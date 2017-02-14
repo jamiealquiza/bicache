@@ -3,8 +3,8 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"time"
 	"strconv"
+	"time"
 
 	"github.com/jamiealquiza/bicache"
 	"github.com/jamiealquiza/tachymeter"
@@ -12,9 +12,10 @@ import (
 
 func main() {
 	c := bicache.New(&bicache.Config{
-		MfuSize:   50000,
-		MruSize:   50000,
-		AutoEvict: 1000,
+		MfuSize:    50000,
+		MruSize:    50000,
+		AutoEvict:  1000,
+		ShardCount: 512,
 	})
 
 	keys := 100000
@@ -24,7 +25,6 @@ func main() {
 		key := strconv.Itoa(i)
 		c.Set(key, []byte{0})
 	}
-
 
 	t := tachymeter.New(&tachymeter.Config{Size: keys})
 	fmt.Printf("[ Set %d keys ]\n", keys)

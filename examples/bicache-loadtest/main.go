@@ -5,8 +5,8 @@ import (
 	"flag"
 	"fmt"
 	"math/rand"
-	"time"
 	"strconv"
+	"time"
 
 	"github.com/jamiealquiza/bicache"
 	"github.com/jamiealquiza/tachymeter"
@@ -24,10 +24,11 @@ func main() {
 	flag.Parse()
 
 	c := bicache.New(&bicache.Config{
-		MfuSize:   uint(*mfu),
-		MruSize:   uint(*mru),
-		AutoEvict: uint(*evict * 1000),
-		EvictLog:  true,
+		MfuSize:    uint(*mfu),
+		MruSize:    uint(*mru),
+		AutoEvict:  uint(*evict * 1000),
+		EvictLog:   true,
+		ShardCount: 1024,
 	})
 
 	keys := int(*ratio * float64((*mfu + *mru)))

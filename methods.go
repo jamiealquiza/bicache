@@ -30,7 +30,7 @@ import (
 // keyInfo holds a key name, state (0: MRU, 1: MRU)
 // and cache score.
 type KeyInfo struct {
-	Key string
+	Key   string
 	State uint8
 	Score uint64
 }
@@ -141,7 +141,7 @@ func (b *Bicache) SetTtl(k string, v interface{}, t int32) {
 
 // Get takes a key and returns the value. Every get
 // on a key increases the key score.
-func (b *Bicache) Get(k string) interface{} { 
+func (b *Bicache) Get(k string) interface{} {
 	s := b.shards[b.getShard(k)]
 
 	s.RLock()
@@ -213,7 +213,7 @@ func (b *Bicache) List(n int) ListResults {
 
 func (b *Bicache) getShard(k string) int {
 	b.h.Write([]byte(k))
-	i := int(b.h.Sum64()&255)
+	i := int(b.h.Sum64()&uint64(b.ShardCount - 1))
 	b.h.Reset()
 	return i
 }
