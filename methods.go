@@ -211,8 +211,12 @@ func (b *Bicache) List(n int) ListResults {
 }
 */
 
+// getShard returns the shard index
+// using key consistent-hashing.
 func (b *Bicache) getShard(k string) int {
 	b.h.Write([]byte(k))
+	// Mask appears to actually be
+	// slower on MacOS than linux.
 	i := int(b.h.Sum64()&uint64(b.ShardCount - 1))
 	b.h.Reset()
 	return i
