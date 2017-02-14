@@ -117,7 +117,7 @@ type Stats struct {
 // an initialized *Shard.
 func New(c *Config) *Bicache {
 	// Check that ShardCount is a power of 2.
-	if (c.ShardCount & (c.ShardCount - 1)) == 0 {
+	if (c.ShardCount & (c.ShardCount - 1)) != 0 {
 		return nil
 	}
 
@@ -143,6 +143,7 @@ func New(c *Config) *Bicache {
 
 	cache := &Bicache{
 		shards: shards,
+		ShardCount: c.ShardCount,
 		h:      fnv.New64a(),
 	}
 
