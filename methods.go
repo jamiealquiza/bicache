@@ -213,7 +213,7 @@ func (b *Bicache) List(n int) ListResults {
 
 func (b *Bicache) getShard(k string) int {
 	b.h.Write([]byte(k))
-	i := int(b.h.Sum64() % 256)
+	i := int(b.h.Sum64()&255)
 	b.h.Reset()
 	return i
 }
