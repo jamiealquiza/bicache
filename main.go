@@ -39,7 +39,7 @@ import (
 // Bicache is a bicache.
 type Bicache struct {
 	shards     []*Shard
-	h          hash.Hash64
+	h          hash.Hash32
 	autoEvict  bool
 	ShardCount int
 }
@@ -144,7 +144,7 @@ func New(c *Config) *Bicache {
 	cache := &Bicache{
 		shards: shards,
 		ShardCount: c.ShardCount,
-		h:      fnv.New64a(),
+		h:      fnv.New32(),
 	}
 
 	var start time.Time
