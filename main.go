@@ -41,7 +41,7 @@ type Bicache struct {
 	shards     []*Shard
 	h          hash.Hash32
 	autoEvict  bool
-	ShardCount int
+	ShardCount uint32
 }
 
 // Shard implements a cache unit
@@ -143,7 +143,7 @@ func New(c *Config) *Bicache {
 
 	cache := &Bicache{
 		shards: shards,
-		ShardCount: c.ShardCount,
+		ShardCount: uint32(c.ShardCount),
 		h:      fnv.New32(),
 	}
 
