@@ -22,7 +22,7 @@
 package bicache
 
 import (
-	//"sort"
+	"sort"
 	"sync/atomic"
 	"time"
 )
@@ -184,20 +184,21 @@ func (b *Bicache) Del(k string) {
 // List returns all key names, states, and scores
 // sorted in descending order by score. Returns n
 // top restults.
-/*
 func (b *Bicache) List(n int) ListResults {
 	// Make a ListResults large enough to hold the
 	// number of cache items present in both cache tiers.
-	lr := make(ListResults, s.mruCache.Len()+s.mfuCache.Len())
+	lr := make(ListResults, 0, b.Size)
 
 	var i int
-	for k, v := range s.cacheMap {
-		lr[i] = &KeyInfo{
-			Key:   k,
-			State: v.state,
-			Score: v.node.Score,
+	for _, shard := range b.shards {
+		for k, v := range shard.cacheMap {
+			lr = append(lr, &KeyInfo{
+				Key:   k,
+				State: v.state,
+				Score: v.node.Score,
+			})
+			i++
 		}
-		i++
 	}
 
 	sort.Sort(lr)
@@ -209,7 +210,6 @@ func (b *Bicache) List(n int) ListResults {
 
 	return lr
 }
-*/
 
 // getShard returns the shard index
 // using fnv-1 32-bit based consistent-hashing

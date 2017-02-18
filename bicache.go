@@ -39,6 +39,7 @@ type Bicache struct {
 	shards     []*Shard
 	autoEvict  bool
 	ShardCount uint32
+	Size       int
 }
 
 // Shard implements a cache unit
@@ -139,8 +140,9 @@ func New(c *Config) *Bicache {
 	}
 
 	cache := &Bicache{
-		shards: shards,
+		shards:     shards,
 		ShardCount: uint32(c.ShardCount),
+		Size:       (mfuSize + mruSize) * c.ShardCount,
 	}
 
 	var start time.Time

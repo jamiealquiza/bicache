@@ -2,7 +2,7 @@ package main
 
 import (
 	"bufio"
-	//"bytes"
+	"bytes"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -30,7 +30,7 @@ var (
 		"set":    set,
 		"setttl": setTtl,
 		"del":    del,
-		//"list":   list,
+		"list":   list,
 	}
 )
 
@@ -175,7 +175,6 @@ func del(c *bicache.Bicache, r *Request) string {
 }
 
 // Bicache List method.
-/*
 func list(c *bicache.Bicache, r *Request) string {
 	limit, err := strconv.Atoi(r.params)
 	if err != nil {
@@ -194,4 +193,4 @@ func list(c *bicache.Bicache, r *Request) string {
 	}
 
 	return string(b.Bytes())
-}*/
+}
