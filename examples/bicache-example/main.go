@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/jamiealquiza/bicache"
@@ -11,52 +12,50 @@ import (
 
 func main() {
 	c := bicache.New(&bicache.Config{
-		MfuSize:   50000,
-		MruSize:   50000,
-		AutoEvict: 1000,
+		MfuSize:    50000,
+		MruSize:    50000,
+		AutoEvict:  1000,
+		ShardCount: 512,
 	})
 
 	keys := 100000
 
-	// Pre-warm cache for writes;
-	// normally the entire cache wouldn't
-	// be populated in one go.
+	// Cache pre-warm.
 	for i := 0; i < keys; i++ {
-		c.Set(i, i)
+		key := strconv.Itoa(i)
+		c.Set(key, []byte{0})
 	}
 
 	t := tachymeter.New(&tachymeter.Config{Size: keys})
 	fmt.Printf("[ Set %d keys ]\n", keys)
 	for i := 0; i < keys; i++ {
+		key := strconv.Itoa(i)
 		start := time.Now()
-		c.Set(i, i)
+		c.Set(key, []byte{0})
 		t.AddTime(time.Since(start))
 	}
 	t.Calc().Dump()
 
 	fmt.Println()
 
-	c.Get(3)
-	c.Get(3)
-	c.Get(3)
-	c.Get(3)
-	c.Get(3)
+	c.Get("3")
+	c.Get("3")
+	c.Get("3")
+	c.Get("3")
+	c.Get("3")
 
-	//time.Sleep(1 * time.Second)
-
-	c.Get(2)
-	c.Get(2)
-	c.Get(2)
-	c.Get(2)
-	c.Get(2)
-
-	//time.Sleep(3 * time.Second)
+	c.Get("2")
+	c.Get("2")
+	c.Get("2")
+	c.Get("2")
+	c.Get("2")
 
 	t.Reset()
 	fmt.Printf("[ Get %d keys ]\n", keys)
 	for i := 0; i < keys; i++ {
+		key := strconv.Itoa(i)
 		start := time.Now()
-		_ = c.Get(i)
+		_ = c.Get(key)
 		t.AddTime(time.Since(start))
 	}
 

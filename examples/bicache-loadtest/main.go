@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"math/rand"
+	"strconv"
 	"time"
 
 	"github.com/jamiealquiza/bicache"
@@ -23,10 +24,11 @@ func main() {
 	flag.Parse()
 
 	c := bicache.New(&bicache.Config{
-		MfuSize:   uint(*mfu),
-		MruSize:   uint(*mru),
-		AutoEvict: uint(*evict * 1000),
-		EvictLog:  true,
+		MfuSize:    uint(*mfu),
+		MruSize:    uint(*mru),
+		AutoEvict:  uint(*evict * 1000),
+		EvictLog:   true,
+		ShardCount: 1024,
 	})
 
 	keys := int(*ratio * float64((*mfu + *mru)))
@@ -59,11 +61,11 @@ func main() {
 func readerWriter(c *bicache.Bicache, rt, wt *tachymeter.Tachymeter, max int) {
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	var start time.Time
-	var k int
+	var k string
 	var v interface{}
 	for {
+		k = strconv.Itoa(r.Intn(max))
 		time.Sleep(3 * time.Millisecond)
-		k = r.Intn(max)
 		start = time.Now()
 		v = c.Get(k)
 

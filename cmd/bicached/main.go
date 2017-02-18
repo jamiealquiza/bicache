@@ -37,18 +37,19 @@ var (
 func main() {
 	// Initialize settings.
 	var address = flag.String("listen", "localhost:9090", "listen address")
-	var mfuSize = flag.Uint("mfu", 256, "MFU cache size")
-	var mruSize = flag.Uint("mru", 64, "MRU cache size")
-	var evictInterval = flag.Uint("evict-interval", 1000, "Eviction interval in ms")
+	var mfuSize = flag.Uint("mfu", 512, "MFU cache size")
+	var mruSize = flag.Uint("mru", 1024, "MRU cache size")
+	var evictInterval = flag.Uint("evict-interval", 10000, "Eviction interval in ms")
 	var evictLog = flag.Bool("evict-log", true, "log eviction times")
 	flag.Parse()
 
 	// Instantiate Bicache.
 	cache := bicache.New(&bicache.Config{
-		MfuSize:   *mfuSize,
-		MruSize:   *mruSize,
-		AutoEvict: *evictInterval,
-		EvictLog:  *evictLog,
+		MfuSize:    *mfuSize,
+		MruSize:    *mruSize,
+		AutoEvict:  *evictInterval,
+		EvictLog:   *evictLog,
+		ShardCount: 512,
 	})
 
 	// Log Bicache stats on interval.
