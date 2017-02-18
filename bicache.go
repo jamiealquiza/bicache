@@ -34,7 +34,8 @@ import (
 	"github.com/jamiealquiza/tachymeter"
 )
 
-// Bicache is a bicache.
+// Bicache implements a two-tier MFU/MRU
+// cache with sharded cache units.
 type Bicache struct {
 	shards     []*Shard
 	autoEvict  bool
