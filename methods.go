@@ -212,12 +212,13 @@ func (b *Bicache) List(n int) ListResults {
 */
 
 // getShard returns the shard index
-// using key consistent-hashing.
+// using fnv-1 32-bit based consistent-hashing
 func (b *Bicache) getShard(k string) int {
-	b.h.Write([]byte(k))
-	// Mask appears to actually be
-	// slower on MacOS than linux.
-	i := int(b.h.Sum32()&(b.ShardCount - 1))
-	b.h.Reset()
-	return i
+	var h int = 2166136261
+	for _, c := range []byte(k) {
+		h *= 16777619
+		h ^= int(c)
+	}
+
+	return h & int(b.ShardCount-1)
 }

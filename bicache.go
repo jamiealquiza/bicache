@@ -23,8 +23,6 @@ package bicache
 
 import (
 	"container/list"
-	"hash"
-	"hash/fnv"
 	"log"
 	"math"
 	"sort"
@@ -39,7 +37,6 @@ import (
 // Bicache is a bicache.
 type Bicache struct {
 	shards     []*Shard
-	h          hash.Hash32
 	autoEvict  bool
 	ShardCount uint32
 }
@@ -144,7 +141,6 @@ func New(c *Config) *Bicache {
 	cache := &Bicache{
 		shards: shards,
 		ShardCount: uint32(c.ShardCount),
-		h:      fnv.New32(),
 	}
 
 	var start time.Time
