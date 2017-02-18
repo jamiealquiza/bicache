@@ -73,39 +73,39 @@ test.go:
 package main
 
 import (
-	"encoding/json"
-	"fmt"
-	"time"
+        "encoding/json"
+        "fmt"
+        "time"
 
-	"github.com/jamiealquiza/bicache"
+        "github.com/jamiealquiza/bicache"
 )
 
 func main() {
-	c := bicache.New(&bicache.Config{
-		MfuSize:   256, // MFU capacity in keys
-		MruSize:   512, // MRU capacity in keys
-		Shards: 64, // Shard count
-		AutoEvict: 30000, // Run TTL evictions + MRU->MFU promotions / evictions automatically every 30s.
-		EvictLog: true, // Emit eviction timing logs.
-	})
+        c := bicache.New(&bicache.Config{
+                MfuSize:   24, // MFU capacity in keys
+                MruSize:   64, // MRU capacity in keys
+                ShardCount: 16, // Shard count
+                AutoEvict: 30000, // Run TTL evictions + MRU->MFU promotions / evictions automatically every 30s.
+                EvictLog: true, // Emit eviction timing logs.
+        })
 
-	// Keys must be strings and values
-	// can be essentially anything (value is an interface{}).
-	// Key and value types can be mixed
-	// in a single cache object.
-	c.Set("name", "john")
-	c.Set("1", 5535)
-	c.Set("myKey", []byte("my value"))
+        // Keys must be strings and values
+        // can be essentially anything (value is an interface{}).
+        // Key and value types can be mixed
+        // in a single cache object.
+        c.Set("name", "john")
+        c.Set("1", 5535)
+        c.Set("myKey", []byte("my value"))
 
-	time.Sleep(time.Second)
+        time.Sleep(time.Second)
 
-	fmt.Println(c.Get("name"))
-	fmt.Println(c.Get("1"))
-	fmt.Println(c.Get("myKey"))
+        fmt.Println(c.Get("name"))
+        fmt.Println(c.Get("1"))
+        fmt.Println(c.Get("myKey"))
 
-	stats := c.Stats()
-	j, _ := json.Marshal(stats)
-	fmt.Printf("\n%s\n", string(j))
+        stats := c.Stats()
+        j, _ := json.Marshal(stats)
+        fmt.Printf("\n%s\n", string(j))
 }
 ```
 
@@ -116,5 +116,5 @@ john
 5535
 [109 121 32 118 97 108 117 101]
 
-{"MfuSize":0,"MruSize":3,"MfuUsedP":0,"MruUsedP":9,"Hits":3,"Misses":0,"Evictions":0}
+{"MfuSize":0,"MruSize":3,"MfuUsedP":0,"MruUsedP":4,"Hits":3,"Misses":0,"Evictions":0}
 ```
