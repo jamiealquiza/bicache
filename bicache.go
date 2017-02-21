@@ -120,6 +120,11 @@ func New(c *Config) *Bicache {
 		return nil
 	}
 
+	// Default to 512 if unset.
+	if c.ShardCount == 0 {
+		c.ShardCount = 512
+	}
+
 	shards := make([]*Shard, c.ShardCount)
 
 	// Get cache sizes for each shard.

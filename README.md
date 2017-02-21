@@ -82,11 +82,11 @@ import (
 
 func main() {
         c := bicache.New(&bicache.Config{
-                MfuSize:   24, // MFU capacity in keys
-                MruSize:   64, // MRU capacity in keys
-                ShardCount: 16, // Shard count
-                AutoEvict: 30000, // Run TTL evictions + MRU->MFU promotions / evictions automatically every 30s.
-                EvictLog: true, // Emit eviction timing logs.
+                MfuSize:    24,    // MFU capacity in keys
+                MruSize:    64,    // MRU capacity in keys
+                ShardCount: 16,    // Shard count. Defaults to 512 if unset.
+                AutoEvict:  30000, // Run TTL evictions + MRU->MFU promotions / evictions automatically every 30s.
+                EvictLog:   true,  // Emit eviction timing logs.
         })
 
         // Keys must be strings and values
