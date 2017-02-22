@@ -82,9 +82,6 @@ type KeyInfo struct {
 c.List(10)
 ```
 
-```
-```
-
 ### Stats
 `Stats()` -> returns \*bicache.Stats.
 
