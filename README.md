@@ -85,7 +85,7 @@ c.List(10)
 ### Stats
 `Stats()` -> returns \*bicache.Stats.
 
-```
+```go
 type Stats struct {
     MfuSize   uint   // Number of acive MFU keys.
     MruSize   uint   // Number of active MRU keys.
@@ -99,7 +99,7 @@ type Stats struct {
 
 Stats structs can be dumped as a json formatted string:
 
-```golang
+```go
 	stats := c.Stats()
 	j, _ := json.Marshal(stats)
 	fmt.Prinln(string(j))
