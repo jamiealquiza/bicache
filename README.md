@@ -31,26 +31,85 @@ Test with Go 1.7+.
 
 See [[GoDoc]](https://godoc.org/github.com/jamiealquiza/bicache) for additional reference.
 
-### Get
-`Get(key)` -> returns `value` for `key`
-
-Increments key score by 1.
-
 ### Set
-`Set(key, value)` -> sets `key` to `value` (if exists, updates)
+`Set(key, value)` -> sets `key` to `value` (if exists, updates).
 
-Moves key to head of MRU cache. Set can be used to update an existing TTL'd key without affecting the TTL. 
+```go
+c.Set("mykey", "my value")
+```
+
+Set can be used to update an existing TTL'd key without affecting the TTL. 
 
 ### SetTtl
-`Set(key, value, ttl)` -> sets `key` to `value` (if exists, updates) with a `ttl` expiration (in seconds)
+`Set(key, value, ttl)` -> sets `key` to `value` (if exists, updates) with a `ttl` expiration (in seconds).
 
-Moves key to head of MRU cache. Resets `ttl` to value specified.
+```go
+c.SetTtl("mykey", "my value", 3600)
+```
+
+SetTtl can be used to add a TTL to an existing non-TTL'd key, or, will reset an existing TTL.
+
+### Get
+`Get(key)` -> returns `value` for `key`.
+
+```go
+value := c.Get("mykey")
+```
+
+Get returns `nil` if the key doesn't exist or was evicted. Increments key score by 1.
 
 ### Del
-`Del(key)` -> removes key from cache
+`Del(key)` -> removes key from cache.
+
+```go
+c.Del("mykey")
+```
 
 ### List
-`List(int)` -> returns the top n key names:state:score (state: 0 = MRU cache, 1 = MFU cache)
+`List(int)` -> returns \*bicache.ListResults that includes the top n keys by score, formatted as `key:state:score` (state: 0 = MRU cache, 1 = MFU cache).
+
+```go
+type ListResults []*KeyInfo
+
+type KeyInfo struct {
+    Key   string
+    State uint8
+    Score uint64
+}
+```
+
+```go
+c.List(10)
+```
+
+```
+```
+
+### Stats
+`Stats()` -> returns \*bicache.Stats.
+
+```
+type Stats struct {
+    MfuSize   uint   // Number of acive MFU keys.
+    MruSize   uint   // Number of active MRU keys.
+    MfuUsedP  uint   // MFU used in percent.
+    MruUsedP  uint   // MRU used in percent.
+    Hits      uint64 // Cache hits.
+    Misses    uint64 // Cache misses.
+    Evictions uint64 // Cache evictions.
+}
+```
+
+Stats structs can be dumped as a json formatted string:
+
+```golang
+	stats := c.Stats()
+	j, _ := json.Marshal(stats)
+	fmt.Prinln(string(j))
+```
+```
+{"MfuSize":0,"MruSize":3,"MfuUsedP":0,"MruUsedP":4,"Hits":3,"Misses":0,"Evictions":0}
+```
 
 # Configuration
 
