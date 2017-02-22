@@ -73,7 +73,12 @@ Also take note that the actual cache capacity may vary slightly from what's conf
 
 TTL expirations, MRU to MFU promotions, and MRU overflow evictions only occur automatically if the `AutoEvict` configuration parameter is set. This is a background task that only runs if a non-zero parameter is set. If unset or explicitly configured to 0, TTL expirations never run and MRU promotions and evictions will be performed at each Set operation.
 
-The Bicache `EvictLog` configuration parameter specifies whether or not eviction timing logs are emitted.
+The Bicache `EvictLog` configuration specifies whether or not eviction timing logs are emitted:
+<pre>
+2017/02/22 11:01:47 [PromoteEvict] cumulative: 61.023µs | min: 52ns | max: 434ns
+</pre>
+
+This reports the total time spent on the previous eviction cycle across all shards, along with the min and max time experienced for any individual shard.
 
 # Example
 
