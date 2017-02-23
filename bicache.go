@@ -204,16 +204,18 @@ func New(c *Config) *Bicache {
 				ttlStats = ttlTachy.Calc()
 				promoStats = promoTachy.Calc()
 
-				// Log TTL stats if a
-				// TTL eviction was triggered.
-				if ttlStats.Count > 0 {
-					log.Printf("[EvictTTL] cumulative: %s | min: %s | max: %s\n",
-						ttlStats.Time.Cumulative, ttlStats.Time.Min, ttlStats.Time.Max)
-				}
+				if c.EvictLog {
+					// Log TTL stats if a
+					// TTL eviction was triggered.
+					if ttlStats.Count > 0 {
+						log.Printf("[Bicache EvictTTL] cumulative: %s | min: %s | max: %s\n",
+							ttlStats.Time.Cumulative, ttlStats.Time.Min, ttlStats.Time.Max)
+					}
 
-				// Log PromoteEvict stats.
-				log.Printf("[PromoteEvict] cumulative: %s | min: %s | max: %s\n",
-					promoStats.Time.Cumulative, promoStats.Time.Min, promoStats.Time.Max)
+					// Log PromoteEvict stats.
+					log.Printf("[Bicache PromoteEvict] cumulative: %s | min: %s | max: %s\n",
+						promoStats.Time.Cumulative, promoStats.Time.Min, promoStats.Time.Max)
+				}
 
 				// Reset tachymeter.
 				ttlTachy.Reset()
