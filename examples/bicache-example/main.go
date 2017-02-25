@@ -38,18 +38,6 @@ func main() {
 
 	fmt.Println()
 
-	c.Get("3")
-	c.Get("3")
-	c.Get("3")
-	c.Get("3")
-	c.Get("3")
-
-	c.Get("2")
-	c.Get("2")
-	c.Get("2")
-	c.Get("2")
-	c.Get("2")
-
 	t.Reset()
 	fmt.Printf("[ Get %d keys ]\n", keys)
 	for i := 0; i < keys; i++ {
