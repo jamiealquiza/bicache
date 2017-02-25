@@ -134,7 +134,7 @@ func New(c *Config) *Bicache {
 	// Init shards.
 	for i := 0; i < c.ShardCount; i++ {
 		shards[i] = &Shard{
-			cacheMap:      make(map[string]*entry),
+			cacheMap:      make(map[string]*entry, mfuSize+mruSize),
 			mfuCache:      sll.New(mfuSize),
 			mruCache:      sll.New(mruSize),
 			mfuCap:        uint(mfuSize),
