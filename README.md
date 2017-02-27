@@ -81,6 +81,16 @@ type KeyInfo struct {
 ```go
 c.List(10)
 ```
+### FlushMru, FlushMfu, FlushAll
+`FlushMru()`, `FlushMfu`, `FlushAll` -> returns error.
+
+```go
+err := c.FlushMru()
+err := c.FlushMfu()
+err := c.FlushAll()
+```
+
+Flush commands flush all keys from the respective cache. `FlushAll` is faster than combining `FlushMru` and `FlushMfu`.
 
 ### Stats
 `Stats()` -> returns \*bicache.Stats.
