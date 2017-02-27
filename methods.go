@@ -25,9 +25,11 @@ import (
 	"sort"
 	"sync/atomic"
 	"time"
+
+	"github.com/jamiealquiza/bicache/sll"
 )
 
-// keyInfo holds a key name, state (0: MRU, 1: MRU)
+// keyInfo holds a key name, state (0: MRU, 1: MFU)
 // and cache score.
 type KeyInfo struct {
 	Key   string
@@ -209,6 +211,73 @@ func (b *Bicache) List(n int) ListResults {
 	}
 
 	return lr
+}
+
+// FlushMru flushes all MRU entries.
+func (b *Bicache) FlushMru() error {
+	// Traverse shards.
+	for _, s := range b.shards {
+		s.Lock()
+
+		// Remove cacheMap entries.
+		for k, v := range s.cacheMap {
+			if v.state == 0 {
+				delete(s.cacheMap, k)
+				delete(s.ttlMap, k)
+			}
+		}
+
+		s.mruCache = sll.New(int(s.mruCap))
+
+		s.Unlock()
+	}
+
+	return nil
+}
+
+// FlushMfu flushes all MFU entries.
+func (b *Bicache) FlushMfu() error {
+	// Traverse shards.
+	for _, s := range b.shards {
+		s.Lock()
+
+		// Remove cacheMap entries.
+		for k, v := range s.cacheMap {
+			if v.state == 1 {
+				delete(s.cacheMap, k)
+				delete(s.ttlMap, k)
+			}
+		}
+
+		s.mfuCache = sll.New(int(s.mfuCap))
+
+		s.Unlock()
+	}
+
+	return nil
+}
+
+// FlushAll flushes all cache entries.
+// Flush all is much faster than combining both a
+// FlushMru and FlushMfu call.
+func (b *Bicache) FlushAll() error {
+	// Traverse and reset shard caches.
+	for _, s := range b.shards {
+		s.Lock()
+
+		// Reset cache and TTL maps and nearest expire.
+		s.cacheMap = make(map[string]*entry, s.mfuCap+s.mruCap)
+		s.ttlMap = make(map[string]time.Time)
+		s.nearestExpire = time.Now().Add(time.Second * 2147483647)
+
+		// Create new caches.
+		s.mfuCache = sll.New(int(s.mfuCap))
+		s.mruCache = sll.New(int(s.mruCap))
+
+		s.Unlock()
+	}
+
+	return nil
 }
 
 // getShard returns the shard index

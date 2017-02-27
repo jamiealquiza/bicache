@@ -31,6 +31,7 @@ var (
 		"setttl": setTtl,
 		"del":    del,
 		"list":   list,
+		"flush": flush,
 	}
 )
 
@@ -193,4 +194,19 @@ func list(c *bicache.Bicache, r *Request) string {
 	}
 
 	return string(b.Bytes())
+}
+
+func flush(c *bicache.Bicache, r *Request) string {
+	switch r.params {
+	case "mfu":
+		c.FlushMfu()
+	case "mru":
+		c.FlushMru()
+	case "all":
+		c.FlushAll()
+	default:
+		return "invalid flush option"
+	}
+
+	return "ok\n"
 }
