@@ -32,41 +32,39 @@ Test with Go 1.7+.
 See [[GoDoc]](https://godoc.org/github.com/jamiealquiza/bicache) for additional reference.
 
 ### Set
-`Set(key, value)` -> sets `key` to `value` (if exists, updates).
-
 ```go
-c.Set("mykey", "my value")
+c.Set("key", "value")
 ```
 
-Set can be used to update an existing TTL'd key without affecting the TTL. 
+Sets `key` to `value` (if exists, updates). Set can be used to update an existing TTL'd key without affecting the TTL. 
 
 ### SetTtl
-`Set(key, value, ttl)` -> sets `key` to `value` (if exists, updates) with a `ttl` expiration (in seconds).
-
 ```go
-c.SetTtl("mykey", "my value", 3600)
+c.SetTtl("key", "value", 3600)
 ```
 
-SetTtl can be used to add a TTL to an existing non-TTL'd key, or, will reset an existing TTL.
+Sets `key` to `value` (if exists, updates) with a `ttl` expiration (in seconds). SetTtl can be used to add a TTL to an existing non-TTL'd key, or, updating an existing TTL.
 
 ### Get
-`Get(key)` -> returns `value` for `key`.
-
 ```go
-value := c.Get("mykey")
+value := c.Get("key")
 ```
 
-Get returns `nil` if the key doesn't exist or was evicted. Increments key score by 1.
+Returns `value` for `key`. Increments the key score by 1. Get returns `nil` if the key doesn't exist or was evicted.
 
 ### Del
-`Del(key)` -> removes key from cache.
-
 ```go
-c.Del("mykey")
+c.Del("key")
 ```
 
+Removes `key` from the cache.
+
 ### List
-`List(int)` -> returns \*bicache.ListResults that includes the top n keys by score, formatted as `key:state:score` (state: 0 = MRU cache, 1 = MFU cache).
+```go
+c.List(10)
+```
+
+Returns a \*bicache.ListResults that includes the top n keys by score, formatted as `key:state:score` (state: 0 = MRU cache, 1 = MFU cache).
 
 ```go
 type ListResults []*KeyInfo
@@ -78,12 +76,7 @@ type KeyInfo struct {
 }
 ```
 
-```go
-c.List(10)
-```
 ### FlushMru, FlushMfu, FlushAll
-`FlushMru()`, `FlushMfu`, `FlushAll` -> returns error.
-
 ```go
 err := c.FlushMru()
 err := c.FlushMfu()
@@ -93,7 +86,11 @@ err := c.FlushAll()
 Flush commands flush all keys from the respective cache. `FlushAll` is faster than combining `FlushMru` and `FlushMfu`.
 
 ### Stats
-`Stats()` -> returns \*bicache.Stats.
+```go
+stats := c.Stats()
+```
+
+Returns a \*bicache.Stats.
 
 ```go
 type Stats struct {
@@ -110,13 +107,14 @@ type Stats struct {
 Stats structs can be dumped as a json formatted string:
 
 ```go
-	stats := c.Stats()
-	j, _ := json.Marshal(stats)
-	fmt.Prinln(string(j))
+j, _ := json.Marshal(stats)
+fmt.Prinln(string(j))
 ```
 ```
 {"MfuSize":0,"MruSize":3,"MfuUsedP":0,"MruUsedP":4,"Hits":3,"Misses":0,"Evictions":0}
 ```
+
+
 
 # Configuration
 
