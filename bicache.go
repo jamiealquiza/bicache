@@ -57,6 +57,7 @@ type Shard struct {
 	ttlMap        map[string]time.Time
 	counters      *counters
 	nearestExpire time.Time
+	noOverflow    bool
 }
 
 // Counters holds Bicache performance
@@ -81,6 +82,7 @@ type Config struct {
 	AutoEvict  uint
 	EvictLog   bool
 	ShardCount int
+	NoOverflow bool
 }
 
 // Entry is a container type for scored
@@ -142,6 +144,7 @@ func New(c *Config) *Bicache {
 			ttlMap:        make(map[string]time.Time),
 			counters:      &counters{},
 			nearestExpire: time.Now(),
+			noOverflow:    c.NoOverflow,
 		}
 	}
 

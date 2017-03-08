@@ -68,13 +68,20 @@ func (lr ListResults) Swap(i, j int) {
 // Set takes a key and value and creates
 // and entry in the MRU cache. If the key
 // already exists, the value is updated.
-func (b *Bicache) Set(k string, v interface{}) {
+func (b *Bicache) Set(k string, v interface{}) bool {
 	s := b.shards[b.getShard(k)]
 
 	s.Lock()
 	// If the entry exists, update. If not,
 	// create at the tail of the MRU cache.
 	if n, exists := s.cacheMap[k]; !exists {
+		// Return false if we're at capacity
+		// and no overflow is set.
+		if s.noOverflow && s.mruCache.Len() >= s.mruCap {
+			s.Unlock()
+			return false
+		}
+
 		// Create at the MRU tail.
 		s.cacheMap[k] = &entry{
 			node: s.mruCache.PushHead(&cacheData{k: k, v: v}),
@@ -93,11 +100,13 @@ func (b *Bicache) Set(k string, v interface{}) {
 	if !b.autoEvict {
 		s.promoteEvict()
 	}
+
+	return true
 }
 
 // SetTtl is the same as set but accepts a
 // parameter t to specify a TTL in seconds.
-func (b *Bicache) SetTtl(k string, v interface{}, t int32) {
+func (b *Bicache) SetTtl(k string, v interface{}, t int32) bool {
 	s := b.shards[b.getShard(k)]
 
 	s.Lock()
@@ -116,6 +125,12 @@ func (b *Bicache) SetTtl(k string, v interface{}, t int32) {
 	// If the entry exists, update. If not,
 	// create at the tail of the MRU cache.
 	if n, exists := s.cacheMap[k]; !exists {
+		// Return false if we're at capacity
+		// and no overflow is set.
+		if s.noOverflow && s.mruCache.Len() >= s.mruCap {
+			s.Unlock()
+			return false
+		}
 		// Create at the MRU tail.
 		s.cacheMap[k] = &entry{
 			node: s.mruCache.PushHead(&cacheData{k: k, v: v}),
@@ -139,6 +154,8 @@ func (b *Bicache) SetTtl(k string, v interface{}, t int32) {
 	if !b.autoEvict {
 		s.promoteEvict()
 	}
+
+	return true
 }
 
 // Get takes a key and returns the value. Every get
