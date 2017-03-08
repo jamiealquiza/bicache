@@ -31,7 +31,7 @@ var (
 		"setttl": setTtl,
 		"del":    del,
 		"list":   list,
-		"flush": flush,
+		"flush":  flush,
 	}
 )
 
@@ -41,7 +41,8 @@ func main() {
 	var mfuSize = flag.Uint("mfu", 512, "MFU cache size")
 	var mruSize = flag.Uint("mru", 1024, "MRU cache size")
 	var evictInterval = flag.Uint("evict-interval", 10000, "Eviction interval in ms")
-	var evictLog = flag.Bool("evict-log", true, "log eviction times")
+	var evictLog = flag.Bool("evict-log", true, "Log eviction times")
+	var noOverflow = flag.Bool("no-overflow", false, "Bicache no overflow")
 	flag.Parse()
 
 	// Instantiate Bicache.
@@ -51,6 +52,7 @@ func main() {
 		AutoEvict:  *evictInterval,
 		EvictLog:   *evictLog,
 		ShardCount: 512,
+		NoOverflow: *noOverflow,
 	})
 
 	// Log Bicache stats on interval.

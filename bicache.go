@@ -66,6 +66,7 @@ type counters struct {
 	hits      uint64
 	misses    uint64
 	evictions uint64
+	overflows uint64
 }
 
 // Config holds a Bicache configuration.
@@ -112,6 +113,7 @@ type Stats struct {
 	Hits      uint64 // Cache hits.
 	Misses    uint64 // Cache misses.
 	Evictions uint64 // Cache evictions.
+	Overflows uint64 // Failed sets on full caches.
 }
 
 // New takes a *Config and returns
@@ -248,6 +250,7 @@ func (b *Bicache) Stats() *Stats {
 		stats.Hits += atomic.LoadUint64(&s.counters.hits)
 		stats.Misses += atomic.LoadUint64(&s.counters.misses)
 		stats.Evictions += atomic.LoadUint64(&s.counters.evictions)
+		stats.Overflows += atomic.LoadUint64(&s.counters.overflows)
 	}
 
 	stats.MruUsedP = uint(float64(stats.MruSize) / mruCap * 100)

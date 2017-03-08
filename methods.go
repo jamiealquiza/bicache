@@ -79,6 +79,7 @@ func (b *Bicache) Set(k string, v interface{}) bool {
 		// and no overflow is set.
 		if s.noOverflow && s.mruCache.Len() >= s.mruCap {
 			s.Unlock()
+			atomic.AddUint64(&s.counters.overflows, 1)
 			return false
 		}
 
@@ -129,6 +130,7 @@ func (b *Bicache) SetTtl(k string, v interface{}, t int32) bool {
 		// and no overflow is set.
 		if s.noOverflow && s.mruCache.Len() >= s.mruCap {
 			s.Unlock()
+			atomic.AddUint64(&s.counters.overflows, 1)
 			return false
 		}
 		// Create at the MRU tail.
