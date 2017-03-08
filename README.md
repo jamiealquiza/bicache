@@ -33,17 +33,17 @@ See [[GoDoc]](https://godoc.org/github.com/jamiealquiza/bicache) for additional 
 
 ### Set
 ```go
-c.Set("key", "value")
+ok := c.Set("key", "value")
 ```
 
-Sets `key` to `value` (if exists, updates). Set can be used to update an existing TTL'd key without affecting the TTL. 
+Sets `key` to `value` (if exists, updates). Set can be used to update an existing TTL'd key without affecting the TTL. A status bool is returned to signal whether or not the set was successful. A `false` is returned when Bicache is configured with `NoOverflow` enabled and the cache is full.
 
 ### SetTtl
 ```go
-c.SetTtl("key", "value", 3600)
+ok := c.SetTtl("key", "value", 3600)
 ```
 
-Sets `key` to `value` (if exists, updates) with a `ttl` expiration (in seconds). SetTtl can be used to add a TTL to an existing non-TTL'd key, or, updating an existing TTL.
+Sets `key` to `value` (if exists, updates) with a `ttl` expiration (in seconds). SetTtl can be used to add a TTL to an existing non-TTL'd key, or, updating an existing TTL. A status bool is returned to signal whether or not the set was successful. A `false` is returned when Bicache is configured with `NoOverflow` enabled and the cache is full.
 
 ### Get
 ```go
@@ -101,6 +101,7 @@ type Stats struct {
     Hits      uint64 // Cache hits.
     Misses    uint64 // Cache misses.
     Evictions uint64 // Cache evictions.
+    Overflows uint64 // Failed sets on full caches.
 }
 ```
 
@@ -111,7 +112,7 @@ j, _ := json.Marshal(stats)
 fmt.Prinln(string(j))
 ```
 ```
-{"MfuSize":0,"MruSize":3,"MfuUsedP":0,"MruUsedP":4,"Hits":3,"Misses":0,"Evictions":0}
+{"MfuSize":0,"MruSize":3,"MfuUsedP":0,"MruUsedP":4,"Hits":3,"Misses":0,"Evictions":0,"Overflows":0}
 ```
 
 
@@ -128,6 +129,8 @@ Bicache's internal accounting, cache promotion, evictions and stats are all isol
 ### Cache sizes
 
 Bicache can be configured with arbitrary sizes for each cache, allowing a ratio of MFU to MRU for different usage patterns. While the example shows very low cache sizes, this is purely to demonstrate functionality when the MRU is overflowed. A real world configuration might be a 10,000 key MFU and 30,000 key MRU capacity.
+
+The `Config.NoOverflow` setting specifies whether or not `Set` and `SetTtl` methods are allowed to add additional keys when the cache is full. If No Overflow is enabled, a set will return `false` if the cache is full. Allowing overflow will allow caches to run over 100% utilization until a promovtion/eviction cycle is performed to evict overflow keys. No Overflow may be interesting for strict cache size controls with extremely high set volumes, where the caches could reach several times their capacity between eviction cycles.
 
 The MFU can also be set to 0, causing Bicache to behave like a typical MRU/LRU cache.
 
@@ -194,5 +197,5 @@ john
 5535
 [109 121 32 118 97 108 117 101]
 
-{"MfuSize":0,"MruSize":3,"MfuUsedP":0,"MruUsedP":4,"Hits":3,"Misses":0,"Evictions":0}
+{"MfuSize":0,"MruSize":3,"MfuUsedP":0,"MruUsedP":4,"Hits":3,"Misses":0,"Evictions":0,"Overflows":0}
 ```
