@@ -168,6 +168,7 @@ func main() {
                 ShardCount: 16,    // Shard count. Defaults to 512 if unset.
                 AutoEvict:  30000, // Run TTL evictions + MRU->MFU promotions / evictions automatically every 30s.
                 EvictLog:   true,  // Emit eviction timing logs.
+                NoOverflow: true,  // Disallow Set ops when the MRU cache is full.
         })
 
         // Keys must be strings and values
