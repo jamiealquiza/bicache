@@ -156,80 +156,83 @@ func New(c *Config) *Bicache {
 		Size:       (mfuSize + mruSize) * c.ShardCount,
 	}
 
-	var start time.Time
 	// Initialize a background goroutine
 	// for handling promotions and evictions,
 	// if configured.
 	if c.AutoEvict > 0 {
-		ttlTachy := tachymeter.New(&tachymeter.Config{Size: c.ShardCount})
-		promoTachy := tachymeter.New(&tachymeter.Config{Size: c.ShardCount})
-
 		cache.autoEvict = true
-		var evicted int
 		iter := time.Duration(c.AutoEvict)
-
-		var ttlStats, promoStats *tachymeter.Metrics
-
-		go func(b *Bicache) {
-			interval := time.NewTicker(time.Millisecond * iter)
-			defer interval.Stop()
-
-			// On the auto eviction interval,
-			// we loop through each shard
-			// and trigger a TTL and promotion/eviction.
-			for _ = range interval.C {
-				for _, s := range b.shards {
-					// Run ttl evictions.
-					start = time.Now()
-					evicted = 0
-
-					// At the very first check, nearestExpire
-					// was set to the Bicache initialization time.
-					// This is certain to run at least once.
-					// The first and real nearest expire will be set
-					// in any SetTtl call that's made.
-					if s.nearestExpire.Before(start.Add(iter)) {
-						evicted = s.evictTtl()
-					}
-
-					if c.EvictLog && evicted > 0 {
-						ttlTachy.AddTime(time.Since(start))
-					}
-
-					// Run promotions/overflow evictions.
-					start = time.Now()
-					s.promoteEvict()
-
-					if c.EvictLog {
-						promoTachy.AddTime(time.Since(start))
-					}
-				}
-
-				// Calc eviction/promo stats.
-				ttlStats = ttlTachy.Calc()
-				promoStats = promoTachy.Calc()
-
-				if c.EvictLog {
-					// Log TTL stats if a
-					// TTL eviction was triggered.
-					if ttlStats.Count > 0 {
-						log.Printf("[Bicache EvictTTL] cumulative: %s | min: %s | max: %s\n",
-							ttlStats.Time.Cumulative, ttlStats.Time.Min, ttlStats.Time.Max)
-					}
-
-					// Log PromoteEvict stats.
-					log.Printf("[Bicache PromoteEvict] cumulative: %s | min: %s | max: %s\n",
-						promoStats.Time.Cumulative, promoStats.Time.Min, promoStats.Time.Max)
-				}
-
-				// Reset tachymeter.
-				ttlTachy.Reset()
-				promoTachy.Reset()
-			}
-		}(cache)
+		go bgAutoEvict(cache, iter, c)
 	}
 
 	return cache
+}
+
+// bgAutoEvict calls evictTtl and promoteEvict for all shards
+// sequentially on the configured iter time interval.
+func bgAutoEvict(b *Bicache, iter time.Duration, c *Config) {
+	ttlTachy := tachymeter.New(&tachymeter.Config{Size: c.ShardCount})
+	promoTachy := tachymeter.New(&tachymeter.Config{Size: c.ShardCount})
+	interval := time.NewTicker(time.Millisecond * iter)
+	var evicted int
+	var start time.Time
+
+	defer interval.Stop()
+
+	var ttlStats, promoStats *tachymeter.Metrics
+
+	// On the auto eviction interval,
+	// we loop through each shard
+	// and trigger a TTL and promotion/eviction.
+	for _ = range interval.C {
+		for _, s := range b.shards {
+			// Run ttl evictions.
+			start = time.Now()
+			evicted = 0
+
+			// At the very first check, nearestExpire
+			// was set to the Bicache initialization time.
+			// This is certain to run at least once.
+			// The first and real nearest expire will be set
+			// in any SetTtl call that's made.
+			if s.nearestExpire.Before(start.Add(iter)) {
+				evicted = s.evictTtl()
+			}
+
+			if c.EvictLog && evicted > 0 {
+				ttlTachy.AddTime(time.Since(start))
+			}
+
+			// Run promotions/overflow evictions.
+			start = time.Now()
+			s.promoteEvict()
+
+			if c.EvictLog {
+				promoTachy.AddTime(time.Since(start))
+			}
+		}
+
+		// Calc eviction/promo stats.
+		ttlStats = ttlTachy.Calc()
+		promoStats = promoTachy.Calc()
+
+		if c.EvictLog {
+			// Log TTL stats if a
+			// TTL eviction was triggered.
+			if ttlStats.Count > 0 {
+				log.Printf("[Bicache EvictTTL] cumulative: %s | min: %s | max: %s\n",
+					ttlStats.Time.Cumulative, ttlStats.Time.Min, ttlStats.Time.Max)
+			}
+
+			// Log PromoteEvict stats.
+			log.Printf("[Bicache PromoteEvict] cumulative: %s | min: %s | max: %s\n",
+				promoStats.Time.Cumulative, promoStats.Time.Min, promoStats.Time.Max)
+		}
+
+		// Reset tachymeter.
+		ttlTachy.Reset()
+		promoTachy.Reset()
+	}
 }
 
 // Stats returns a *Stats with
