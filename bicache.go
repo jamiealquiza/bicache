@@ -23,6 +23,7 @@ package bicache
 
 import (
 	"container/list"
+	"errors"
 	"log"
 	"math"
 	"sort"
@@ -118,10 +119,14 @@ type Stats struct {
 
 // New takes a *Config and returns
 // an initialized *Shard.
-func New(c *Config) *Bicache {
+func New(c *Config) (*Bicache, error) {
 	// Check that ShardCount is a power of 2.
 	if (c.ShardCount & (c.ShardCount - 1)) != 0 {
-		return nil
+		return nil, errors.New("Shard count must be a power of 2")
+	}
+
+	if c.MruSize <= 0 {
+		return nil, errors.New("MRU size must be > 0")
 	}
 
 	// Default to 512 if unset.
@@ -165,7 +170,7 @@ func New(c *Config) *Bicache {
 		go bgAutoEvict(cache, iter, c)
 	}
 
-	return cache
+	return cache, nil
 }
 
 // bgAutoEvict calls evictTtl and promoteEvict for all shards
@@ -271,7 +276,7 @@ func (b *Bicache) Stats() *Stats {
 // sweep garbage collection. The number of keys
 // evicted is returned.
 func (s *Shard) evictTtl() int {
-	// Return if we have to items with TTLs.
+	// Return if we have no TTL'd keys.
 	if atomic.LoadUint64(&s.ttlCount) == 0 {
 		return 0
 	}
@@ -552,8 +557,9 @@ func (s *Shard) evictFromMruTail(n int) {
 }
 
 // decrementTtlCount decrements the Bicache.ttlCount
-// value by n. This should only be performed within
-// a locked mutex.
+// value by n. Even though these operations are atomic,
+// this method should only be called when the shard is locked
+// for other consistency reasons.
 func (s *Shard) decrementTtlCount(n uint64) {
 	// Prevents some obscure
 	// scenario where ttlCount is
