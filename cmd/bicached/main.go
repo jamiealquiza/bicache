@@ -46,7 +46,7 @@ func main() {
 	flag.Parse()
 
 	// Instantiate Bicache.
-	cache := bicache.New(&bicache.Config{
+	cache, _ := bicache.New(&bicache.Config{
 		MfuSize:    *mfuSize,
 		MruSize:    *mruSize,
 		AutoEvict:  *evictInterval,

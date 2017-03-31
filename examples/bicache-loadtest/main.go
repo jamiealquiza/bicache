@@ -23,7 +23,7 @@ func main() {
 	// Add ttl mode.
 	flag.Parse()
 
-	c := bicache.New(&bicache.Config{
+	c, _ := bicache.New(&bicache.Config{
 		MfuSize:    uint(*mfu),
 		MruSize:    uint(*mru),
 		AutoEvict:  uint(*evict * 1000),

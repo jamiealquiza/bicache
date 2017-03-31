@@ -162,7 +162,7 @@ import (
 )
 
 func main() {
-        c := bicache.New(&bicache.Config{
+        c, _ := bicache.New(&bicache.Config{
                 MfuSize:    24,    // MFU capacity in keys
                 MruSize:    64,    // MRU capacity in keys
                 ShardCount: 16,    // Shard count. Defaults to 512 if unset.

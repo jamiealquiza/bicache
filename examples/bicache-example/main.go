@@ -11,7 +11,7 @@ import (
 )
 
 func main() {
-	c := bicache.New(&bicache.Config{
+	c, _ := bicache.New(&bicache.Config{
 		MfuSize:    50000,
 		MruSize:    50000,
 		AutoEvict:  1000,

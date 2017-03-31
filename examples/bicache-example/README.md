@@ -1,6 +1,6 @@
 Excerpts:
 ```go
-c := bicache.New(&bicache.Config{
+c, _ := bicache.New(&bicache.Config{
 	MfuSize:   50000,
 	MruSize:   25000,
 	AutoEvict: 1000,
