@@ -299,6 +299,21 @@ func (b *Bicache) FlushAll() error {
 	return nil
 }
 
+// Pause suspends normal and TTL evictions.
+// If eviction logging is enabled, bicache
+// will log that evictions are paused
+// at each interval if paused.
+func (b *Bicache) Pause() error {
+	atomic.StoreUint32(&b.paused, 1)
+	return nil
+}
+
+// Resume resumes normal and TTL evictions.
+func (b *Bicache) Resume() error {
+	atomic.StoreUint32(&b.paused, 0)
+	return nil
+}
+
 // getShard returns the shard index
 // using fnv-1 32-bit based consistent-hashing
 func (b *Bicache) getShard(k string) int {

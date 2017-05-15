@@ -42,6 +42,7 @@ type Bicache struct {
 	autoEvict  bool
 	ShardCount uint32
 	Size       int
+	paused     uint32
 }
 
 // Shard implements a cache unit
@@ -190,6 +191,15 @@ func bgAutoEvict(b *Bicache, iter time.Duration, c *Config) {
 	// we loop through each shard
 	// and trigger a TTL and promotion/eviction.
 	for _ = range interval.C {
+		// Skip this interval if
+		// evictions are paused.
+		if atomic.LoadUint32(&b.paused) == 1 {
+			if c.EvictLog {
+				log.Printf("[Bicache] Evictions Paused")
+			}
+			continue
+		}
+
 		for _, s := range b.shards {
 			// Run ttl evictions.
 			start = time.Now()
