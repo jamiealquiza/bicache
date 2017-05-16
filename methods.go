@@ -1,24 +1,5 @@
-// The MIT License (MIT)
-//
-// Copyright (c) 2016 Jamie Alquiza
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
+// Package bicache implements a two-tier MFU/MRU
+// cache with sharded cache units.
 package bicache
 
 import (
@@ -29,7 +10,7 @@ import (
 	"github.com/jamiealquiza/bicache/sll"
 )
 
-// keyInfo holds a key name, state (0: MRU, 1: MFU)
+// KeyInfo holds a key name, state (0: MRU, 1: MFU)
 // and cache score.
 type KeyInfo struct {
 	Key   string
@@ -37,7 +18,7 @@ type KeyInfo struct {
 	Score uint64
 }
 
-// listResults is a container that holds results from
+// ListResults is a container that holds results from
 // from a List method (as keyInfo), allowing sorting of
 // available key names by score.
 type ListResults []*KeyInfo
@@ -105,9 +86,9 @@ func (b *Bicache) Set(k string, v interface{}) bool {
 	return true
 }
 
-// SetTtl is the same as set but accepts a
+// SetTTL is the same as set but accepts a
 // parameter t to specify a TTL in seconds.
-func (b *Bicache) SetTtl(k string, v interface{}, t int32) bool {
+func (b *Bicache) SetTTL(k string, v interface{}, t int32) bool {
 	s := b.shards[b.getShard(k)]
 
 	s.Lock()
@@ -317,7 +298,7 @@ func (b *Bicache) Resume() error {
 // getShard returns the shard index
 // using fnv-1 32-bit based consistent-hashing
 func (b *Bicache) getShard(k string) int {
-	var h int = 2166136261
+	var h = 2166136261
 	for _, c := range []byte(k) {
 		h *= 16777619
 		h ^= int(c)

@@ -38,12 +38,12 @@ ok := c.Set("key", "value")
 
 Sets `key` to `value` (if exists, updates). Set can be used to update an existing TTL'd key without affecting the TTL. A status bool is returned to signal whether or not the set was successful. A `false` is returned when Bicache is configured with `NoOverflow` enabled and the cache is full.
 
-### SetTtl
+### SetTTL
 ```go
-ok := c.SetTtl("key", "value", 3600)
+ok := c.SetTTL("key", "value", 3600)
 ```
 
-Sets `key` to `value` (if exists, updates) with a `ttl` expiration (in seconds). SetTtl can be used to add a TTL to an existing non-TTL'd key, or, updating an existing TTL. A status bool is returned to signal whether or not the set was successful. A `false` is returned when Bicache is configured with `NoOverflow` enabled and the cache is full.
+Sets `key` to `value` (if exists, updates) with a `ttl` expiration (in seconds). SetTTL can be used to add a TTL to an existing non-TTL'd key, or, updating an existing TTL. A status bool is returned to signal whether or not the set was successful. A `false` is returned when Bicache is configured with `NoOverflow` enabled and the cache is full.
 
 ### Get
 ```go
@@ -138,7 +138,7 @@ Bicache's internal accounting, cache promotion, evictions and stats are all isol
 
 Bicache can be configured with arbitrary sizes for each cache, allowing a ratio of MFU to MRU for different usage patterns. While the example shows very low cache sizes, this is purely to demonstrate functionality when the MRU is overflowed. A real world configuration might be a 10,000 key MFU and 30,000 key MRU capacity.
 
-The `Config.NoOverflow` setting specifies whether or not `Set` and `SetTtl` methods are allowed to add additional keys when the cache is full. If No Overflow is enabled, a set will return `false` if the cache is full. Allowing overflow will allow caches to run over 100% utilization until a promovtion/eviction cycle is performed to evict overflow keys. No Overflow may be interesting for strict cache size controls with extremely high set volumes, where the caches could reach several times their capacity between eviction cycles.
+The `Config.NoOverflow` setting specifies whether or not `Set` and `SetTTL` methods are allowed to add additional keys when the cache is full. If No Overflow is enabled, a set will return `false` if the cache is full. Allowing overflow will allow caches to run over 100% utilization until a promovtion/eviction cycle is performed to evict overflow keys. No Overflow may be interesting for strict cache size controls with extremely high set volumes, where the caches could reach several times their capacity between eviction cycles.
 
 The MFU can also be set to 0, causing Bicache to behave like a typical MRU/LRU cache.
 

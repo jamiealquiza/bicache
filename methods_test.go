@@ -56,7 +56,7 @@ func BenchmarkSet(b *testing.B) {
 	}
 }
 
-func BenchmarkSetTtl(b *testing.B) {
+func BenchmarkSetTTL(b *testing.B) {
 	b.StopTimer()
 
 	c, _ := bicache.New(&bicache.Config{
@@ -74,7 +74,7 @@ func BenchmarkSetTtl(b *testing.B) {
 
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
-		c.SetTtl(keys[i], "my value", 3600)
+		c.SetTTL(keys[i], "my value", 3600)
 	}
 }
 
@@ -160,7 +160,7 @@ func TestSetGet(t *testing.T) {
 	}
 }
 
-func TestSetTtl(t *testing.T) {
+func TestSetTTL(t *testing.T) {
 	c, _ := bicache.New(&bicache.Config{
 		MfuSize:    10,
 		MruSize:    30,
@@ -168,7 +168,7 @@ func TestSetTtl(t *testing.T) {
 		AutoEvict:  1000,
 	})
 
-	ok := c.SetTtl("key", "value", 3)
+	ok := c.SetTTL("key", "value", 3)
 	if !ok {
 		t.Error("Set failed")
 	}

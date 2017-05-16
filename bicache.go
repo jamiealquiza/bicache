@@ -1,24 +1,5 @@
-// The MIT License (MIT)
-//
-// Copyright (c) 2016 Jamie Alquiza
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
+// Package bicache implements a two-tier MFU/MRU
+// cache with sharded cache units.
 package bicache
 
 import (
@@ -174,7 +155,7 @@ func New(c *Config) (*Bicache, error) {
 	return cache, nil
 }
 
-// bgAutoEvict calls evictTtl and promoteEvict for all shards
+// bgAutoEvict calls evictTTL and promoteEvict for all shards
 // sequentially on the configured iter time interval.
 func bgAutoEvict(b *Bicache, iter time.Duration, c *Config) {
 	ttlTachy := tachymeter.New(&tachymeter.Config{Size: c.ShardCount})
@@ -209,9 +190,9 @@ func bgAutoEvict(b *Bicache, iter time.Duration, c *Config) {
 			// was set to the Bicache initialization time.
 			// This is certain to run at least once.
 			// The first and real nearest expire will be set
-			// in any SetTtl call that's made.
+			// in any SetTTL call that's made.
 			if s.nearestExpire.Before(start.Add(iter)) {
-				evicted = s.evictTtl()
+				evicted = s.evictTTL()
 			}
 
 			if c.EvictLog && evicted > 0 {
@@ -282,10 +263,10 @@ func (b *Bicache) Stats() *Stats {
 	return stats
 }
 
-// evictTtl evicts expired keys using a mark
+// evictTTL evicts expired keys using a mark
 // sweep garbage collection. The number of keys
 // evicted is returned.
-func (s *Shard) evictTtl() int {
+func (s *Shard) evictTTL() int {
 	// Return if we have no TTL'd keys.
 	if atomic.LoadUint64(&s.ttlCount) == 0 {
 		return 0
@@ -345,9 +326,9 @@ func (s *Shard) evictTtl() int {
 	// Update the nearest expire.
 	// If the last TTL'd key was just expired,
 	// this will be left at the initially set value
-	// at the top of evictTtl. This means that the
+	// at the top of evictTTL. This means that the
 	// auto eviction runs will just skip
-	// evictTtl until a SetTtl creates a real
+	// evictTTL until a SetTTL creates a real
 	// nearest expire timestamp (since it's checking
 	// if the nearest expire happens within the auto
 	// evict interval).
@@ -356,7 +337,7 @@ func (s *Shard) evictTtl() int {
 	s.Unlock()
 
 	// Update eviction counters.
-	s.decrementTtlCount(uint64(evicted))
+	s.decrementTTLCount(uint64(evicted))
 
 	return evicted
 }
@@ -559,18 +540,18 @@ func (s *Shard) evictFromMruTail(n int) {
 
 	// Update the ttlCount.
 	ttlEvicted := ttlStart - len(s.ttlMap)
-	s.decrementTtlCount(uint64(ttlEvicted))
+	s.decrementTTLCount(uint64(ttlEvicted))
 	// Update eviction count.
 	// Excludes TTL evictions since the
-	// decrementTtlCount handles that for us.
+	// decrementTTLCount handles that for us.
 	atomic.AddUint64(&s.counters.evictions, uint64(n-ttlEvicted))
 }
 
-// decrementTtlCount decrements the Bicache.ttlCount
+// decrementTTLCount decrements the Bicache.ttlCount
 // value by n. Even though these operations are atomic,
 // this method should only be called when the shard is locked
 // for other consistency reasons.
-func (s *Shard) decrementTtlCount(n uint64) {
+func (s *Shard) decrementTTLCount(n uint64) {
 	// Prevents some obscure
 	// scenario where ttlCount is
 	// already 0 and we rollover to
