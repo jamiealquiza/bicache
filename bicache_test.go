@@ -94,8 +94,8 @@ func TestEvictTtl(t *testing.T) {
 		AutoEvict:  1000,
 	})
 
-	c.SetTtl("5", "value", 5)
-	c.SetTtl("30", "value", 30)
+	c.SetTTL("5", "value", 5)
+	c.SetTTL("30", "value", 30)
 
 	if v := c.Get("5"); v != "value" {
 		t.Error("Expected hit")

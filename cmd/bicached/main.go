@@ -155,7 +155,7 @@ func set(c *bicache.Bicache, r *Request) string {
 	return "ok\n"
 }
 
-// Bicache SetTtl method.
+// Bicache SetTTL method.
 func setTtl(c *bicache.Bicache, r *Request) string {
 	parts := strings.Split(r.params, ":")
 	k, v, ttlVal := parts[0], parts[1], parts[2]
@@ -165,7 +165,7 @@ func setTtl(c *bicache.Bicache, r *Request) string {
 		return "bad ttl\n"
 	}
 
-	c.SetTtl(k, v, int32(ttl))
+	c.SetTTL(k, v, int32(ttl))
 
 	return "ok\n"
 }
