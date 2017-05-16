@@ -22,7 +22,7 @@ New keys are always set to the head of the MRU list; MFU keys are only ever set 
 
 
 # Installation
-Test with Go 1.7+.
+Tested with Go 1.7+.
 
 - `go get -u github.com/jamiealquiza/bicache`
 - Import package (or `go install github.com/jamiealquiza/bicache/...` for examples)
