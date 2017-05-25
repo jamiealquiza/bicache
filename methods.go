@@ -296,7 +296,7 @@ func (b *Bicache) Resume() error {
 }
 
 // getShard returns the shard index
-// using fnv-1 32-bit based consistent-hashing
+// using fnv-1 32-bit based hash-routing.
 func (b *Bicache) getShard(k string) int {
 	var h = 2166136261
 	for _, c := range []byte(k) {

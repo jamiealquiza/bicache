@@ -130,7 +130,7 @@ fmt.Prinln(string(j))
 ### Shard counts
 Internally, bicache shards the two cache tiers into many sub-caches (sized through configuration in powers of 2). This is done for two primary reasons: 1) to reduce lock contention in high concurrency workloads 2) minimize the maximum runtime of expensive maintenance tasks (e.g. many MRU to MFU promotions followed by many MRU evictions). Otherwise, shards are invisible from the API or user's perspective.
 
-Get, Set and Delete requests are routed to the appropriate cache shard using a consistent-hashing scheme. Shards are inexpensive to manage, but an appropriate size should be set depending on the workload. Fewer threads and lower write volumes may use 64 shards whereas many threads with high write volumes would be better served with 1024 shards.
+Get, Set and Delete requests are routed to the appropriate cache shard using a hash-routing scheme. Shards are inexpensive to manage, but an appropriate size should be set depending on the workload. Fewer threads and lower write volumes may use 64 shards whereas many threads with high write volumes would be better served with 1024 shards.
 
 Bicache's internal accounting, cache promotion, evictions and stats are all isolated per shard. Promotions and evictions are ran on the configured `AutoEvict` interval in a sequential manner (promotion/eviction timings are emitted if configured [this is the most performance influencing aspect of bicache]). Top level bicache statistics (hits, misses, usage) are gathered by aggregating all shard stats.
 
