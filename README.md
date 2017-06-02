@@ -7,19 +7,17 @@ Bicache's two tiers of cache are individually size configurable (in key count [a
 
 Bicached is built for highly concurrent, read optimized workloads. It averages roughly single-digit microsecond Sets and 500 nanosecond Gets at 100,000 keys on modern hardware (assuming a promotion/eviction is not running; the impact can vary greatly depending on configuration). This translates to millions of get/set operations per second from a single thread. Additionally, a goal of roughly 10us p999 get operations is intended with concurrent reads and writes while sustaining evictions. More formal performance criteria will be established and documented.
 
-# Diagram
+# Design
 
 In a MRU cache, both fetching and setting a key moves it to the front of the list. When the list is full, keys are evicted from the tail when space for a new key is needed. An item that is hit often (in orange) remains in the cache by probability that it was accessed recently.
 
 Commonly, a cache miss works as follows: `cache get` -> `miss` -> `backend lookup` -> `cache results`. If a piece of software were to traverse a large list of user IDs stored in a backend database, it's likely that the cache capacity will be much smaller than the number of user IDs available in the database. This will result in the entire MRU being flushed and replaced.
-![img](https://raw.githubusercontent.com/jamiealquiza/catpics/master/mru.png)
 
 Bicache isolates MRU large scan evictions by promoting the most used keys to an MFU cache when the MRU cache is full. MRU to MFU promotions are intelligent; rather than attempting to promote tail items, Bicache asynchronously gathers the highest score MRU keys and promotes those that have scores exceeding keys in the MFU. Any remainder key count that must be evicted relegates to MFU to MRU demotion followed by MRU tail eviction.
 
+![img_0836](https://cloud.githubusercontent.com/assets/4108044/26748074/cf5e7858-47b7-11e7-8063-b9e95bfa3fdc.PNG)
+
 New keys are always set to the head of the MRU list; MFU keys are only ever set by promotion. 
-![img](https://raw.githubusercontent.com/jamiealquiza/catpics/master/mfu-mru.png)
-
-
 
 # Installation
 Tested with Go 1.7+.
@@ -154,6 +152,10 @@ The Bicache `EvictLog` configuration specifies whether or not eviction timing lo
 </pre>
 
 This reports the total time spent on the previous eviction cycle across all shards, along with the min and max time experienced for any individual shard.
+
+## Sharding Design
+
+![img_0837](https://cloud.githubusercontent.com/assets/4108044/26748075/cf7a3566-47b7-11e7-80ca-b53f32833447.PNG)
 
 # Example
 
