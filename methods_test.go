@@ -389,3 +389,134 @@ func TestFlushAll(t *testing.T) {
 		t.Errorf("Expected MRU size of 0, got %d", stats.MruSize)
 	}
 }
+
+func TestIntegrity(t *testing.T) {
+	words := []string{"&c", "'d", "'em", "'ll", "'m", "'mid", "'midst", "'mongst", "'prentice", "'re", "'s", "'sblood", "'sbodikins", "'sdeath", "'sfoot", "'sheart", "'shun", "'slid", "'slife", "'slight", "'snails", "'strewth", "'t", "'til", "'tis", "'twas", "'tween", "'twere", "'twill", "'twixt", "'twould", "'un", "'ve", "1080", "10th", "1st", "2", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th", "a", "a'", "a's", "a/c", "a1", "aa", "aaa", "aah", "aahed", "aahing", "aahs", "aal", "aalii", "aaliis", "aals", "aam", "aardvark", "aardvarks", "aardwolf", "aardwolves", "aargh", "aaron", "aaronic", "aarrgh", "aarrghh", "aas", "aasvogel", "aasvogels", "ab", "aba", "abac", "abaca", "abacas", "abacate", "abacaxi", "abacay", "abaci", "abacinate", "abacination", "abacisci", "abaciscus", "abacist", "aback", "abacli", "abacot", "abacterial", "abactinal", "abactinally", "abaction", "abactor", "abaculi", "abaculus", "abacus", "abacuses", "abada", "abaddon", "abadejo", "abadengo", "abadia", "abaff", "abaft", "abaisance", "abaised", "abaiser", "abaisse", "abaissed", "abaka", "abakas", "abalation", "abalienate", "abalienated", "abalienating", "abalienation", "abalone", "abalones", "abamp", "abampere", "abamperes", "abamps", "aband", "abandon", "abandonable", "abandoned", "abandonedly", "abandonee", "abandoner", "abandoners", "abandoning", "abandonment", "abandonments", "abandons", "abandum", "abanet", "abanga", "abannition", "abapical", "abaptiston", "abaptistum", "abarthrosis", "abarticular", "abarticulation", "abas", "abase", "abased", "abasedly", "abasedness", "abasement", "abasements", "abaser", "abasers", "abases", "abash", "abashed", "abashedly", "abashedness", "abashes", "abashing", "abashless", "abashlessly", "abashment", "abashments", "abasia", "abasias", "abasic", "abasing", "abasio", "abask", "abassi", "abastard", "abastardize", "abastral", "abatable", "abatage", "abate", "abated", "abatement", "abatements", "abater", "abaters", "abates", "abatic", "abating", "abatis", "abatised", "abatises", "abatjour", "abatjours", "abaton", "abator", "abators", "abattage", "abattis", "abattised", "abattises", "abattoir", "abattoirs", "abattu", "abattue", "abature", "abaue", "abave", "abaxial", "abaxile", "abay", "abayah", "abaze", "abb", "abba", "abbacies", "abbacomes", "abbacy", "abbandono", "abbas", "abbasi", "abbasid", "abbassi", "abbate", "abbatial", "abbatical", "abbatie", "abbaye", "abbe", "abbes", "abbess", "abbesses", "abbest", "abbevillian", "abbey", "abbey's", "abbeys", "abbeystead", "abbeystede", "abboccato", "abbogada", "abbot", "abbot's", "abbotcies", "abbotcy", "abbotnullius", "abbotric", "abbots", "abbotship", "abbotships", "abbott", "abbozzo", "abbr", "abbrev", "abbreviatable", "abbreviate", "abbreviated", "abbreviately", "abbreviates", "abbreviating", "abbreviation", "abbreviations", "abbreviator", "abbreviators", "abbreviatory", "abbreviature", "abbroachment", "abby", "abc", "abcess", "abcissa", "abcoulomb", "abd", "abdal", "abdali", "abdaria", "abdat", "abdest", "abdicable", "abdicant", "abdicate", "abdicated", "abdicates", "abdicating", "abdication", "abdications", "abdicative", "abdicator", "abditive", "abditory", "abdom", "abdomen", "abdomen's", "abdomens", "abdomina", "abdominal", "abdominales", "abdominalia", "abdominalian", "abdominally", "abdominals", "abdominoanterior", "abdominocardiac", "abdominocentesis", "abdominocystic", "abdominogenital", "abdominohysterectomy", "abdominohysterotomy", "abdominoposterior", "abdominoscope", "abdominoscopy", "abdominothoracic", "abdominous", "abdominovaginal", "abdominovesical", "abduce", "abduced", "abducens", "abducent", "abducentes", "abduces", "abducing", "abduct", "abducted", "abducting", "abduction", "abduction's", "abductions", "abductor", "abductor's", "abductores", "abductors", "abducts", "abeam", "abear", "abearance", "abecedaire", "abecedaria", "abecedarian", "abecedarians", "abecedaries", "abecedarium", "abecedarius", "abecedary", "abed", "abede", "abedge", "abegge", "abeigh", "abel", "abele", "abeles", "abelian", "abelite", "abelmosk", "abelmosks", "abelmusk", "abeltree", "abend", "abends", "abenteric", "abepithymia", "aberdavine", "aberdeen", "aberdevine", "aberduvine", "abernethy", "aberr", "aberrance", "aberrancies", "aberrancy", "aberrant", "aberrantly", "aberrants", "aberrate", "aberrated", "aberrating", "aberration", "aberrational", "aberrations", "aberrative", "aberrator", "aberrometer", "aberroscope", "aberuncate", "aberuncator", "abesse", "abessive", "abet", "abetment", "abetments", "abets", "abettal", "abettals", "abetted", "abetter", "abetters", "abetting", "abettor", "abettors", "abevacuation", "abey", "abeyance", "abeyances", "abeyancies", "abeyancy", "abeyant", "abfarad", "abfarads", "abhenries", "abhenry", "abhenrys", "abhinaya", "abhiseka", "abhominable", "abhor", "abhorred", "abhorrence", "abhorrences", "abhorrency", "abhorrent", "abhorrently", "abhorrer", "abhorrers", "abhorrible", "abhorring", "abhors", "abib", "abichite", "abidal", "abidance", "abidances", "abidden", "abide", "abided", "abider", "abiders", "abides", "abidi", "abiding", "abidingly", "abidingness", "abiegh", "abience", "abient", "abietate", "abietene", "abietic", "abietin", "abietineous", "abietinic", "abietite", "abigail", "abigails", "abigailship", "abigeat", "abigei", "abigeus", "abilao", "abilene", "abiliment", "abilitable", "abilities", "ability", "ability's", "abilla", "abilo", "abime", "abintestate", "abiogeneses", "abiogenesis", "abiogenesist", "abiogenetic", "abiogenetical", "abiogenetically", "abiogenist", "abiogenous", "abiogeny", "abiological", "abiologically", "abiology", "abioses", "abiosis", "abiotic", "abiotical", "abiotically", "abiotrophic", "abiotrophy", "abir", "abirritant", "abirritate", "abirritated", "abirritating", "abirritation", "abirritative", "abiston", "abit", "abiuret", "abject", "abjectedness", "abjection", "abjections"}
+
+	c, _ := bicache.New(&bicache.Config{
+		MfuSize:    10,
+		MruSize:    30,
+		ShardCount: 8,
+		AutoEvict:  2000,
+	})
+
+	for _, w := range words {
+		c.Set(w, w)
+	}
+
+	// Test pre-eviction integrity.
+	for _, w := range words {
+		if v := c.Get(w); v != nil && v != w {
+			t.Errorf("Expected value %s, got %s", v, w)
+		}
+	}
+
+	time.Sleep(3 * time.Second)
+
+	// Test post-eviction integrity.
+	for _, w := range words {
+		if v := c.Get(w); v != nil && v != w {
+			t.Errorf("Expected value %s, got %s", v, w)
+		}
+	}
+
+	c.FlushAll()
+
+	// Test integrity for keys that
+	// traverse MFU/MRU.
+
+	// Add item targeted for MFU.
+	c.Set("promoted", "promoted")
+	for i := 0; i < 20; i++ {
+		c.Get("promoted")
+	}
+
+	// Seq scan to exhaust MRU.
+	for _, w := range words {
+		c.Set(w, w)
+	}
+
+	time.Sleep(3 * time.Second)
+
+	// Check that target item
+	// was promoted.
+
+	if c.Get("promoted") != "promoted" {
+		t.Errorf(`Expected MFU item value "promoted", got "%s"`, c.Get("promoted"))
+	}
+
+	// Check MFU key state.
+	keys := c.List(len(words))
+	for _, k := range keys {
+		if k.Key == "promoted" && k.State != 1 {
+			t.Errorf("Expected key state 1, got %d", k.State)
+		}
+	}
+
+	c, _ = bicache.New(&bicache.Config{
+		MfuSize:    1,
+		MruSize:    30,
+		ShardCount: 1,
+		AutoEvict:  2000,
+	})
+
+	// Add item targeted for MFU
+	// promotion then demotion.
+	c.Set("promoted", "promoted")
+	for i := 0; i < 5; i++ {
+		c.Get("promoted")
+	}
+
+	// Seq scan to exhaust MRU.
+	for _, w := range words {
+		c.Set(w, w)
+	}
+
+	time.Sleep(3 * time.Second)
+
+	// Check that the promoted key
+	// has the proper key state.
+	keys = c.List(len(words))
+	for _, k := range keys {
+		if k.State == 1 && k.Key != "promoted" {
+			t.Errorf(`Expected key name "promoted", got "%s"`, k.Key)
+		}
+	}
+
+	// Set MFU replacement target.
+	c.Set("replacement", "replacement")
+	for i := 0; i < 10; i++ {
+		c.Get("replacement")
+	}
+
+	// Seq scan to exhaust MRU.
+	for _, w := range words {
+		c.Set(w, w)
+	}
+
+	time.Sleep(3 * time.Second)
+
+	// Check that the promoted key
+	// has the proper key state.
+	keys = c.List(len(words))
+	for _, k := range keys {
+		if k.State == 1 && k.Key != "replacement" {
+			t.Errorf(`Expected key name "replacement", got "%s"`, k.Key)
+		}
+	}
+
+	// Check that the demoted key
+	// has the proper key state.
+	keys = c.List(len(words))
+	for _, k := range keys {
+		if k.Key == "promoted" && k.State != 0 {
+			t.Errorf(`Expected key "promoted" to be in state 0, got "%d"`, k.State)
+		}
+	}
+
+	// Previous and new MFU keys
+	// should still be present.
+	if c.Get("replacement") != "replacement" || c.Get("promoted") != "promoted" {
+		t.Errorf("Unexpected cache miss")
+	}
+}
