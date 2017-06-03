@@ -1,63 +1,45 @@
 [![GoDoc](https://godoc.org/github.com/jamiealquiza/bicache?status.svg)](https://godoc.org/github.com/jamiealquiza/bicache)
 
 # bicache
-Bicache is a hybrid MFU/MRU, TTL-optional, general embedded key cache for Go. Why should you be interested? Pure MRU caches are great because they're fast, simple and safe. Items that are used often generally remain in the cache. The problem is that a single, large scan where the number of misses exceeds the MRU cache size causes _highly used_ (and perhaps the most useful) data to be evicted in favor of _recent_ data. A MFU cache makes the distinction of item value vs recency based on a history of read counts. This means that valuable keys are insulated from large scans of potentially less valuable data.
+Bicache is a hybrid MFU/MRU, TTL-optional, general embedded key cache for Go. Why should you be interested? Pure MRU caches are great because they're fast, simple and safe. Items that are used often generally remain in the cache. A downside is that large, sequential scan where the number of misses exceeds the MRU cache size causes _highly used_ (and perhaps the most useful) data to be evicted in favor of _recent_ data. A MFU cache makes the distinction of item value vs recency based on a history of read counts. This means that valuable keys are insulated from large scans of potentially less valuable data.
 
-Bicache's two tiers of cache are individually size configurable (in key count [and eventually data size]). A shared lookup table is used, limiting read ops to a max of one cache miss over two tiers of cache. Bicache allows MRU to MFU promotions and overflow evictions at write time or on automatic interval as a background task.
+Bicache's two tiers of cache are individually size configurable (in key count, eventually data size). A shared lookup table is used, limited read ops to a max of one cache miss over two tiers of cache. Bicache handles MRU to MFU promotions and overflow evictions at write time or on automatic interval as a background task.
 
-Bicached is built for highly concurrent, read optimized workloads. It averages roughly single-digit microsecond Sets and 500 nanosecond Gets at 100,000 keys on modern hardware (assuming a promotion/eviction is not running; the impact can vary greatly depending on configuration). This translates to millions of get/set operations per second from a single thread. Additionally, a goal of roughly 10us p999 get operations is intended with concurrent reads and writes while sustaining evictions. More formal performance criteria will be established and documented.
-
-# Design
-
-In a MRU cache, both fetching and setting a key moves it to the front of the list. When the list is full, keys are evicted from the tail when space for a new key is needed. An item that is hit often (in orange) remains in the cache by probability that it was accessed recently.
-
-Commonly, a cache miss works as follows: `cache get` -> `miss` -> `backend lookup` -> `cache results`. If a piece of software were to traverse a large list of user IDs stored in a backend database, it's likely that the cache capacity will be much smaller than the number of user IDs available in the database. This will result in the entire MRU being flushed and replaced.
-
-Bicache isolates MRU large scan evictions by promoting the most used keys to an MFU cache when the MRU cache is full. MRU to MFU promotions are intelligent; rather than attempting to promote tail items, Bicache asynchronously gathers the highest score MRU keys and promotes those that have scores exceeding keys in the MFU. Any remainder key count that must be evicted relegates to MFU to MRU demotion followed by MRU tail eviction.
-
-![img_0836](https://cloud.githubusercontent.com/assets/4108044/26748074/cf5e7858-47b7-11e7-8063-b9e95bfa3fdc.PNG)
-
-New keys are always set to the head of the MRU list; MFU keys are only ever set by promotion. 
-
-# Installation
-Tested with Go 1.7+.
-
-- `go get -u github.com/jamiealquiza/bicache`
-- Import package (or `go install github.com/jamiealquiza/bicache/...` for examples)
+Bicached is built for highly concurrent, read optimized workloads. It averages roughly single-digit microsecond Sets and 500 nanosecond Gets at 100,000 keys on modern hardware (assuming a promotion/eviction is not running; the impact can vary greatly depending on configuration). This translates to millions of get/set operations per second from a single thread. Additionally, a target of roughly 10us p999 get operations is intended with concurrent reads and writes while sustaining evictions. More formal performance criteria will be established and documented.
 
 # API
 
 See [[GoDoc]](https://godoc.org/github.com/jamiealquiza/bicache) for additional reference.
 
-### Set
+### Set(key, value)
 ```go
 ok := c.Set("key", "value")
 ```
 
 Sets `key` to `value` (if exists, updates). Set can be used to update an existing TTL'd key without affecting the TTL. A status bool is returned to signal whether or not the set was successful. A `false` is returned when Bicache is configured with `NoOverflow` enabled and the cache is full.
 
-### SetTTL
+### SetTTL(key, value, \<ttl seconds\>)
 ```go
 ok := c.SetTTL("key", "value", 3600)
 ```
 
 Sets `key` to `value` (if exists, updates) with a `ttl` expiration (in seconds). SetTTL can be used to add a TTL to an existing non-TTL'd key, or, updating an existing TTL. A status bool is returned to signal whether or not the set was successful. A `false` is returned when Bicache is configured with `NoOverflow` enabled and the cache is full.
 
-### Get
+### Get(key)
 ```go
 value := c.Get("key")
 ```
 
 Returns `value` for `key`. Increments the key score by 1. Get returns `nil` if the key doesn't exist or was evicted.
 
-### Del
+### Del(key)
 ```go
 c.Del("key")
 ```
 
 Removes `key` from the cache.
 
-### List
+### List(\<n\>)
 ```go
 c.List(10)
 ```
@@ -74,7 +56,7 @@ type KeyInfo struct {
 }
 ```
 
-### FlushMru, FlushMfu, FlushAll
+### FlushMru(), FlushMfu(), FlushAll()
 ```go
 err := c.FlushMru()
 err := c.FlushMfu()
@@ -121,16 +103,37 @@ fmt.Prinln(string(j))
 {"MfuSize":0,"MruSize":3,"MfuUsedP":0,"MruUsedP":4,"Hits":3,"Misses":0,"Evictions":0,"Overflows":0}
 ```
 
+# Design
 
+In a MRU cache, both fetching and setting a key moves it to the front of the list. When the list is full, keys are evicted from the tail when space for a new key is needed. An item that is hit often (in orange) remains in the cache by probability that it was accessed recently.
+
+Commonly, a cache miss works as follows: `cache get` -> `miss` -> `backend lookup` -> `cache results`. If a piece of software were to traverse a large list of user IDs stored in a backend database, it's likely that the cache capacity will be much smaller than the number of user IDs available in the database. This will result in the entire MRU being flushed and replaced.
+
+Bicache isolates MRU large scan evictions by promoting the most used keys to an MFU cache when the MRU cache is full. MRU to MFU promotions are intelligent; rather than attempting to promote tail items, Bicache asynchronously gathers the highest score MRU keys and promotes those that have scores exceeding keys in the MFU. Any remainder key count that must be evicted relegates to MFU to MRU demotion followed by MRU tail eviction.
+
+![img_0836](https://cloud.githubusercontent.com/assets/4108044/26748074/cf5e7858-47b7-11e7-8063-b9e95bfa3fdc.PNG)
+
+New keys are always set to the head of the MRU list; MFU keys are only ever set by promotion.
+
+Internally, bicache shards the two cache tiers into many sub-caches (sized through configuration in powers of 2). This is done for two primary reasons: 1) to reduce lock contention in high concurrency workloads 2) minimize the maximum runtime of expensive maintenance tasks (e.g. many MRU to MFU promotions followed by many MRU evictions). Otherwise, shards are invisible from the perspective of the API.
+
+![img_0840](https://cloud.githubusercontent.com/assets/4108044/26755029/963d7bec-4842-11e7-92c7-bcd2cb4d96bb.PNG)
+> *color key denotes shard lock exclusivity; blue represents a read lock, orange is a full rw lock*
+
+Get, Set and Delete requests are routed to the appropriate cache shard using a hash-routing scheme on the key name. Shards are inexpensive to manage, but an appropriate size should be set depending on the workload. Fewer API consumer threads and lower write volumes might use 64 shards whereas many threads with high write volumes might be better served with 1024 shards.
+
+Bicache's internal accounting, cache promotion, evictions and usage stats are all isolated per shard. Promotions and evictions are handled sequentially across shards in a dedicated background task at the configured `AutoEvict` interval (promotion/eviction timings are emitted if configured; these metrics represet the most performance influencing aspect of bicache). When calling the `Stat()` method on bicache, shard statistics (hits, misses, usage) are aggregated and returned.
+
+# Installation
+Tested with Go 1.7+.
+
+- `go get -u github.com/jamiealquiza/bicache`
+- Import package (or `go install github.com/jamiealquiza/bicache/...` for examples)
 
 # Configuration
 
 ### Shard counts
-Internally, bicache shards the two cache tiers into many sub-caches (sized through configuration in powers of 2). This is done for two primary reasons: 1) to reduce lock contention in high concurrency workloads 2) minimize the maximum runtime of expensive maintenance tasks (e.g. many MRU to MFU promotions followed by many MRU evictions). Otherwise, shards are invisible from the API or user's perspective.
 
-Get, Set and Delete requests are routed to the appropriate cache shard using a hash-routing scheme. Shards are inexpensive to manage, but an appropriate size should be set depending on the workload. Fewer threads and lower write volumes may use 64 shards whereas many threads with high write volumes would be better served with 1024 shards.
-
-Bicache's internal accounting, cache promotion, evictions and stats are all isolated per shard. Promotions and evictions are ran on the configured `AutoEvict` interval in a sequential manner (promotion/eviction timings are emitted if configured [this is the most performance influencing aspect of bicache]). Top level bicache statistics (hits, misses, usage) are gathered by aggregating all shard stats.
 
 ### Cache sizes
 
@@ -152,10 +155,6 @@ The Bicache `EvictLog` configuration specifies whether or not eviction timing lo
 </pre>
 
 This reports the total time spent on the previous eviction cycle across all shards, along with the min and max time experienced for any individual shard.
-
-## Sharding Design
-
-![img_0837](https://cloud.githubusercontent.com/assets/4108044/26748075/cf7a3566-47b7-11e7-80ca-b53f32833447.PNG)
 
 # Example
 
