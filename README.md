@@ -11,6 +11,8 @@ Bicached is built for highly concurrent, read optimized workloads. It averages r
 
 See [[GoDoc]](https://godoc.org/github.com/jamiealquiza/bicache) for additional reference.
 
+See code [Example](https://github.com/jamiealquiza/bicache#example) section at bottom.
+
 ### Set(key, value)
 ```go
 ok := c.Set("key", "value")
@@ -105,11 +107,11 @@ fmt.Prinln(string(j))
 
 # Design
 
-In a MRU cache, both fetching and setting a key moves it to the front of the list. When the list is full, keys are evicted from the tail when space for a new key is needed. An item that is hit often (in orange) remains in the cache by probability that it was accessed recently.
+In a pure MRU cache, both fetching and setting a key moves it to the front of the list. When the list is full, keys are evicted from the tail when space for a new key is needed. An item that is hit often remains in the cache by probability that it was accessed recently.
 
-Commonly, a cache miss works as follows: `cache get` -> `miss` -> `backend lookup` -> `cache results`. If a piece of software were to traverse a large list of user IDs stored in a backend database, it's likely that the cache capacity will be much smaller than the number of user IDs available in the database. This will result in the entire MRU being flushed and replaced.
+Commonly, a cache miss works as follows: `cache get` -> `miss` -> `backend lookup` -> `cache results`. If a piece of software were to traverse a large list of user IDs stored in a backend database, it's possible that the cache capacity will be much smaller than the number of user IDs available in the database. This will result in the entire MRU being flushed and replaced.
 
-Bicache isolates MRU large scan evictions by promoting the most used keys to an MFU cache when the MRU cache is full. MRU to MFU promotions are intelligent; rather than attempting to promote tail items, Bicache asynchronously gathers the highest score MRU keys and promotes those that have scores exceeding keys in the MFU. Any remainder key count that must be evicted relegates to MFU to MRU demotion followed by MRU tail eviction.
+Bicache isolates MRU scan thrashing by promoting the most used keys to an MFU cache when the MRU cache is full. MRU to MFU promotions are intelligent; rather than attempting to promote MRU tail items, Bicache asynchronously gathers the highest score MRU keys and promotes those that have scores exceeding keys in the MFU. Any remainder key count that must be evicted relegates to MFU to MRU demotion followed by MRU tail eviction.
 
 ![img_0836](https://cloud.githubusercontent.com/assets/4108044/26748074/cf5e7858-47b7-11e7-8063-b9e95bfa3fdc.PNG)
 
@@ -134,6 +136,7 @@ Tested with Go 1.7+.
 
 ### Shard counts
 
+Shards must be sized in powers of 2. Shards are relatively inexpensive to manage but should not be arbitrarily high. Shard sizing should be relative to desired cache sizes and workload; more key space and greater write concurrency/rates are better suited with more shards. "Normal" sizes might be 8 shards for simple testing and 1024 shards for production workloads that experience tens of thousands (or more) of cache lookups a second. 
 
 ### Cache sizes
 
