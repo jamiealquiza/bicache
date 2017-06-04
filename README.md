@@ -122,9 +122,7 @@ Internally, bicache shards the two cache tiers into many sub-caches (sized throu
 ![img_0840](https://cloud.githubusercontent.com/assets/4108044/26755029/963d7bec-4842-11e7-92c7-bcd2cb4d96bb.PNG)
 > *color key denotes shard lock exclusivity; blue represents a read lock, orange is a full rw lock*
 
-Get, Set and Delete requests are routed to the appropriate cache shard using a hash-routing scheme on the key name. Shards are inexpensive to manage, but an appropriate size should be set depending on the workload. Fewer API consumer threads and lower write volumes might use 64 shards whereas many threads with high write volumes might be better served with 1024 shards.
-
-Bicache's internal accounting, cache promotion, evictions and usage stats are all isolated per shard. Promotions and evictions are handled sequentially across shards in a dedicated background task at the configured `AutoEvict` interval (promotion/eviction timings are emitted if configured; these metrics represet the most performance influencing aspect of bicache). When calling the `Stat()` method on bicache, shard statistics (hits, misses, usage) are aggregated and returned.
+Get, Set and Delete requests are routed to the appropriate cache shard using a hash-routing scheme on the key name. Bicache's internal accounting, cache promotion, evictions and usage stats are all isolated per shard. Promotions and evictions are handled sequentially across shards in a dedicated background task at the configured `AutoEvict` interval (promotion/eviction timings are emitted if configured; these metrics represet the most performance influencing aspect of bicache). When calling the `Stat()` method on bicache, shard statistics (hits, misses, usage) are aggregated and returned.
 
 # Installation
 Tested with Go 1.7+.
