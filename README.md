@@ -67,7 +67,7 @@ err := c.FlushAll()
 
 Flush commands flush all keys from the respective cache. `FlushAll` is faster than combining `FlushMru` and `FlushMfu`.
 
-### Pause, Resume
+### Pause(), Resume()
 ```go
 c.Pause()
 c.Resume()
@@ -75,7 +75,7 @@ c.Resume()
 
 Pause and Resume allow auto evictions to be suspended and resumed, respectively. If eviction logging is enabled and evictions are paused, bicache will log accordingly. 
 
-### Stats
+### Stats()
 ```go
 stats := c.Stats()
 ```
