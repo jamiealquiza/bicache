@@ -411,6 +411,8 @@ func TestIntegrity(t *testing.T) {
 		}
 	}
 
+	c.Sizes()
+
 	time.Sleep(3 * time.Second)
 
 	// Test post-eviction integrity.

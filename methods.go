@@ -3,6 +3,7 @@
 package bicache
 
 import (
+	"fmt"
 	"sort"
 	"sync/atomic"
 	"time"
@@ -36,6 +37,12 @@ func (lr ListResults) Less(i, j int) bool {
 
 func (lr ListResults) Swap(i, j int) {
 	lr[i], lr[j] = lr[j], lr[i]
+}
+
+func (b *Bicache) Sizes() {
+	for _, s := range b.shards {
+		fmt.Printf("%d ", s.mruCache.Len())
+	}
 }
 
 // Bicache is storing a [2]interface{}
