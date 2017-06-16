@@ -119,7 +119,7 @@ New keys are always set to the head of the MRU list; MFU keys are only ever set 
 
 Internally, bicache shards the two cache tiers into many sub-caches (sized through configuration in powers of 2). This is done for two primary reasons: 1) to reduce lock contention in high concurrency workloads 2) minimize the maximum runtime of expensive maintenance tasks (e.g. many MRU to MFU promotions followed by many MRU evictions). Otherwise, shards are invisible from the perspective of the API.
 
-![img_0840](https://cloud.githubusercontent.com/assets/4108044/26755029/963d7bec-4842-11e7-92c7-bcd2cb4d96bb.PNG)
+![img_0849](https://user-images.githubusercontent.com/4108044/27234682-1dfcac78-527b-11e7-9d4f-5908ab1cbfef.PNG)
 > *color key denotes shard lock exclusivity; blue represents a read lock, orange is a full rw lock*
 
 Get, Set and Delete requests are routed to the appropriate cache shard using a hash-routing scheme on the key name. Bicache's internal accounting, cache promotion, evictions and usage stats are all isolated per shard. Promotions and evictions are handled sequentially across shards in a dedicated background task at the configured `AutoEvict` interval (promotion/eviction timings are emitted if configured; these metrics represet the most performance influencing aspect of bicache). When calling the `Stat()` method on bicache, shard statistics (hits, misses, usage) are aggregated and returned.
