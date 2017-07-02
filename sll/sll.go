@@ -314,13 +314,6 @@ func (ll *Sll) Sync() {
 
 // removeFromScores removes n from the nodeScoreList scores.
 func (ll *Sll) removeFromScores(n *Node) {
-	// Binary search was demonstrating
-	// incredible latencies (even excluding sort time).
-	// Disabled in favor of an unrolled linear search for now.
-
-	// Binary search also doesn't work when all values (scores)
-	// are the same, even though the node is certain to exist.
-
 	// Unrolling with 5 elements
 	// has cut CPU-cached small element
 	// slice search times in half. Needs further testing.
