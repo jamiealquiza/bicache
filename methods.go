@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/jamiealquiza/bicache/sll"
+	"github.com/jamiealquiza/fnv"
 )
 
 // KeyInfo holds a key name, state (0: MRU, 1: MFU)
@@ -296,13 +297,9 @@ func (b *Bicache) Resume() error {
 }
 
 // getShard returns the shard index
-// using fnv-1 32-bit based hash-routing.
+// using fnv-1 32 bit based hash-routing
+// (we can mask for a modulo since ShardCount
+// must be a power of 2).
 func (b *Bicache) getShard(k string) int {
-	var h = 2166136261
-	for _, c := range []byte(k) {
-		h *= 16777619
-		h ^= int(c)
-	}
-
-	return h & int(b.ShardCount-1)
+	return int(fnv.Hash32(k)) & int(b.ShardCount-1)
 }
