@@ -12,6 +12,7 @@ import (
 func TestNew(t *testing.T) {
 	// MFU size, MRU size, shard count, expected bicache size.
 	configExpected := [][4]int{
+		[4]int{0, 0, 512, 0},
 		[4]int{0, 1, 512, 512},
 		[4]int{1, 2, 512, 1024},
 		[4]int{256, 1024, 512, 1536},
@@ -20,15 +21,41 @@ func TestNew(t *testing.T) {
 	// Check that the cache sizes are fitted to the
 	// minimum for the number of shards specified.
 	for _, n := range configExpected {
-		c, _ := bicache.New(&bicache.Config{
+		c, err := bicache.New(&bicache.Config{
 			MfuSize:    uint(n[0]),
 			MruSize:    uint(n[1]),
 			ShardCount: n[2],
 		})
 
+		if err != nil {
+			t.Errorf(err.Error())
+		}
+
 		if c.Size != n[3] {
 			t.Errorf("Expected bicache size %d, got %d", n[3], c.Size)
 		}
+	}
+}
+
+func TestEmptyCache(t *testing.T) {
+	c, _ := bicache.New(&bicache.Config{
+		MfuSize:    0,
+		MruSize:    0,
+		ShardCount: 2,
+		AutoEvict:  3000,
+		NoOverflow: true,
+	})
+
+	for i := 0; i < 50; i++ {
+		c.Set(strconv.Itoa(i), "value")
+	}
+
+	stats := c.Stats()
+	if stats.MfuSize != 0 {
+		t.Error("Unexpected MFU count")
+	}
+	if stats.MruSize != 0 {
+		t.Error("Unexpected MRU count")
 	}
 }
 

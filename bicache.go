@@ -107,8 +107,8 @@ func New(c *Config) (*Bicache, error) {
 		return nil, errors.New("Shard count must be a power of 2")
 	}
 
-	if c.MruSize <= 0 {
-		return nil, errors.New("MRU size must be > 0")
+	if c.MruSize < 0 {
+		return nil, errors.New("MRU size must be >= 0")
 	}
 
 	// Default to 512 if unset.
