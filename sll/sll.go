@@ -1,6 +1,7 @@
 package sll
 
 import (
+	"container/heap"
 	"sort"
 	"sync/atomic"
 )
@@ -90,25 +91,39 @@ func (ll *Sll) Tail() *Node {
 	return ll.root.next
 }
 
+func (ll *Sll) heapSelect(h heap.Interface, k int) {
+	if ll.Len() == 0 {
+		return
+	}
+
+	heap.Init(h)
+	// Add the first k nodes
+	// to the heap.
+	node := ll.Tail()
+	for i := 0; i < k && node != nil; i++ {
+		heap.Push(h, node)
+		node = node.Next()
+	}
+
+	// Iterate the rest of the list
+	// while maintaining the current
+	// heap len.
+	for node != nil {
+		heap.Push(h, node)
+		heap.Pop(h)
+		node = node.Next()
+	}
+}
+
 // HighScores takes an integer and returns the
 // respective number of *Nodes with the higest scores
 // sorted in ascending order.
-func (ll *Sll) HighScores(r int) nodeScoreList {
-	sort.Sort(ll.scores)
-	// Return what's available
-	// if more is being requested
-	// than exists.
-	if r > len(ll.scores) {
-		scores := make(nodeScoreList, len(ll.scores))
-		copy(scores, ll.scores)
-		return scores
-	}
+func (ll *Sll) HighScores(k int) nodeScoreList {
+	h := MinHeap{}
+	ll.heapSelect(&h, k)
 
-	// We return a copy because the
-	// underlying array order will
-	// possibly change.
-	scores := make(nodeScoreList, r)
-	copy(scores, ll.scores[len(ll.scores)-r:])
+	scores := nodeScoreList(h)
+	sort.Sort(scores)
 
 	return scores
 }
@@ -116,22 +131,12 @@ func (ll *Sll) HighScores(r int) nodeScoreList {
 // LowScores takes an integer and returns the
 // respective number of *Nodes with the lowest scores
 // sorted in ascending order.
-func (ll *Sll) LowScores(r int) nodeScoreList {
-	sort.Sort(ll.scores)
-	// Return what's available
-	// if more is being requested
-	// than exists.
-	if r > len(ll.scores) {
-		scores := make(nodeScoreList, len(ll.scores))
-		copy(scores, ll.scores)
-		return scores
-	}
+func (ll *Sll) LowScores(k int) nodeScoreList {
+	h := MaxHeap{}
+	ll.heapSelect(&h, k)
 
-	// We return a copy because the
-	// underlying array order will
-	// possibly change.
-	scores := make(nodeScoreList, r)
-	copy(scores, ll.scores[:r])
+	scores := nodeScoreList(h)
+	sort.Sort(scores)
 
 	return scores
 }

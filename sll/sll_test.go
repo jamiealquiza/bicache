@@ -1,6 +1,7 @@
 package sll_test
 
 import (
+	//"fmt"
 	"testing"
 
 	"github.com/jamiealquiza/bicache/sll"
@@ -107,12 +108,13 @@ func TestHighScores(t *testing.T) {
 	nodes[4].Read()
 	nodes[4].Read()
 
-	// Should result in [2, 4, 3, 1, 5] with read scores
-	// 3, 2, 0, 0, 0 respectively.
+	// Should result in [0,4,3] with read scores
+	// 0,2,3 respectively.
+
 	scores := s.HighScores(3)
 
-	if scores[0] != nodes[2] {
-		t.Errorf("Expected scores position 0 node with value 2, got %d", scores[0].Read())
+	if scores[0] != nodes[0] {
+		t.Errorf("Expected scores position 0 node with value 0, got %d", scores[0].Read())
 	}
 
 	if scores[1] != nodes[4] {
@@ -144,6 +146,18 @@ func TestLowScores(t *testing.T) {
 	// with read scores of 0, 2, 3 respectively.
 	scores := s.LowScores(3)
 
+	/*
+		for node := range nodes {
+			fmt.Printf("node %d: %d\n", node, nodes[node].Score)
+		}
+
+		fmt.Println("-")
+
+		for _, node := range scores {
+			fmt.Printf("node %d: %d\n", node.Value, node.Score)
+		}
+	*/
+
 	if scores[0] != nodes[2] {
 		t.Errorf("Expected scores position 0 node with value 2, got %d", scores[2].Read())
 	}
@@ -154,6 +168,26 @@ func TestLowScores(t *testing.T) {
 
 	if scores[2] != nodes[1] {
 		t.Errorf("Expected scores position 2 node with value 3, got %d", scores[1].Read())
+	}
+}
+
+func TestScoresEmpty(t *testing.T) {
+	s := sll.New(10)
+
+	hScores := s.HighScores(5)
+	lScores := s.LowScores(5)
+
+	// We don't really care about the
+	// len; if it's really broken,
+	// we'd probably have crashed
+	// by now.
+
+	if len(hScores) != 0 {
+		t.Errorf("Expected scores len of 0, got %d", len(hScores))
+	}
+
+	if len(lScores) != 0 {
+		t.Errorf("Expected scores len of 0, got %d", len(lScores))
 	}
 }
 
