@@ -3,6 +3,7 @@ package sll_test
 import (
 	"math/rand"
 	"testing"
+	// "fmt"
 
 	"github.com/jamiealquiza/bicache/sll"
 )
@@ -113,8 +114,18 @@ func TestHighScores(t *testing.T) {
 
 	scores := s.HighScores(3)
 
-	if scores[0] != nodes[0] {
-		t.Errorf("Expected scores position 0 node with value 0, got %d", scores[0].Read())
+	// for node := range nodes {
+	// 	fmt.Printf("node %d: %d\n", node, nodes[node].Score)
+	// }
+	//
+	// fmt.Println("-")
+	//
+	// for _, node := range scores {
+	// 	fmt.Printf("node %d: %d\n", node.Value, node.Score)
+	// }
+
+	if scores[0] != nodes[2] {
+		t.Errorf("Expected scores position 0 node with value 2, got %d", scores[0].Read())
 	}
 
 	if scores[1] != nodes[4] {
@@ -240,9 +251,10 @@ func benchmarkSortScores(b *testing.B, l int) {
 }
 
 func BenchmarkHeapScores200K(b *testing.B) { benchmarkHeapScores(b, 200000) }
-func BenchmarkSortScores200K(b *testing.B) { benchmarkSortScores(b, 200000) }
 func BenchmarkHeapScores2M(b *testing.B)   { benchmarkHeapScores(b, 2000000) }
-func BenchmarkSortScores2M(b *testing.B)   { benchmarkSortScores(b, 2000000) }
+
+// func BenchmarkHeapScores2M(b *testing.B)   { benchmarkHeapScores(b, 2000000) }
+// func BenchmarkSortScores2M(b *testing.B)   { benchmarkSortScores(b, 2000000) }
 
 func TestScoresEmpty(t *testing.T) {
 	s := sll.New(10)

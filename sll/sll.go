@@ -109,30 +109,6 @@ func (ll *Sll) Copy() *Sll {
 	return newll
 }
 
-func (ll *Sll) heapSelect(h heap.Interface, k int) {
-	if ll.Len() == 0 {
-		return
-	}
-
-	heap.Init(h)
-	// Add the first k nodes
-	// to the heap.
-	node := ll.Tail()
-	for i := 0; i < k && node != nil; i++ {
-		heap.Push(h, node)
-		node = node.Next()
-	}
-
-	// Iterate the rest of the list
-	// while maintaining the current
-	// heap len.
-	for node != nil {
-		heap.Push(h, node)
-		heap.Pop(h)
-		node = node.Next()
-	}
-}
-
 // HighScores2 takes an integer and returns the
 // respective number of *Nodes with the higest scores
 // sorted in ascending order.
@@ -160,10 +136,40 @@ func (ll *Sll) HighScores2(r int) nodeScoreList {
 // respective number of *Nodes with the higest scores
 // sorted in ascending order.
 func (ll *Sll) HighScores(k int) nodeScoreList {
-	h := MinHeap{}
-	ll.heapSelect(&h, k)
+	h := &MinHeap{}
 
-	scores := nodeScoreList(h)
+	if ll.Len() == 0 {
+		return nodeScoreList(*h)
+	}
+
+	heap.Init(h)
+
+	// Add the first k nodes
+	// to the heap. In a high scores selection,
+	// we traverse from the head toward the
+	// tail with the assumption that head nodes
+	// are more probable to have higher
+	// scores than tail nodes.
+	node := ll.Head()
+	for i := 0; i < k && node != nil; i++ {
+		heap.Push(h, node)
+		node = node.Prev()
+	}
+
+	var min = h.Peek().(*Node).Score
+
+	// Iterate the rest of the list
+	// while maintaining the current
+	// heap len.
+	for ; node != nil; node = node.Prev() {
+		if node.Score > min {
+			heap.Push(h, node)
+			heap.Pop(h)
+			min = h.Peek().(*Node).Score
+		}
+	}
+
+	scores := nodeScoreList(*h)
 	sort.Sort(scores)
 
 	return scores
@@ -173,10 +179,37 @@ func (ll *Sll) HighScores(k int) nodeScoreList {
 // respective number of *Nodes with the lowest scores
 // sorted in ascending order.
 func (ll *Sll) LowScores(k int) nodeScoreList {
-	h := MaxHeap{}
-	ll.heapSelect(&h, k)
+	h := &MaxHeap{}
 
-	scores := nodeScoreList(h)
+	if ll.Len() == 0 {
+		return nodeScoreList(*h)
+	}
+
+	// In a low scores selection,
+	// we traverse from the tail toward the
+	// head with the assumption that tail nodes
+	// are more probable to have lower
+	// scores than head nodes.
+	node := ll.Tail()
+	for i := 0; i < k && node != nil; i++ {
+		heap.Push(h, node)
+		node = node.Next()
+	}
+
+	var max = h.Peek().(*Node).Score
+
+	// Iterate the rest of the list
+	// while maintaining the current
+	// heap len.
+	for ; node != nil; node = node.Next() {
+		if node.Score < max {
+			heap.Push(h, node)
+			heap.Pop(h)
+			max = h.Peek().(*Node).Score
+		}
+	}
+
+	scores := nodeScoreList(*h)
 	sort.Sort(scores)
 
 	return scores

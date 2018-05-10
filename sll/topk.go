@@ -26,6 +26,11 @@ func (mh *MinHeap) Pop() interface{} {
 	return item
 }
 
+func (mh *MinHeap) Peek() interface{} {
+	s := *mh
+	return s[0]
+}
+
 type MaxHeap []*Node
 
 func (mh MaxHeap) Len() int { return len(mh) }
@@ -49,4 +54,9 @@ func (mh *MaxHeap) Pop() interface{} {
 	item := old[n-1]
 	*mh = old[0 : n-1]
 	return item
+}
+
+func (mh *MaxHeap) Peek() interface{} {
+	s := *mh
+	return s[0]
 }
