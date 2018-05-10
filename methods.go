@@ -228,7 +228,7 @@ func (b *Bicache) FlushMru() error {
 			}
 		}
 
-		s.mruCache = sll.New(int(s.mruCap))
+		s.mruCache = sll.New()
 
 		s.Unlock()
 	}
@@ -250,7 +250,7 @@ func (b *Bicache) FlushMfu() error {
 			}
 		}
 
-		s.mfuCache = sll.New(int(s.mfuCap))
+		s.mfuCache = sll.New()
 
 		s.Unlock()
 	}
@@ -272,8 +272,8 @@ func (b *Bicache) FlushAll() error {
 		s.nearestExpire = time.Now().Add(time.Second * 2147483647)
 
 		// Create new caches.
-		s.mfuCache = sll.New(int(s.mfuCap))
-		s.mruCache = sll.New(int(s.mruCap))
+		s.mfuCache = sll.New()
+		s.mruCache = sll.New()
 
 		s.Unlock()
 	}

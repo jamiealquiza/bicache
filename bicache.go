@@ -126,8 +126,8 @@ func New(c *Config) (*Bicache, error) {
 	for i := 0; i < c.ShardCount; i++ {
 		shards[i] = &Shard{
 			cacheMap:      make(map[string]*entry, mfuSize+mruSize),
-			mfuCache:      sll.New(mfuSize),
-			mruCache:      sll.New(mruSize),
+			mfuCache:      sll.New(),
+			mruCache:      sll.New(),
 			mfuCap:        uint(mfuSize),
 			mruCap:        uint(mruSize),
 			ttlMap:        make(map[string]time.Time),
@@ -307,21 +307,13 @@ func (s *Shard) evictTTL() int {
 			delete(s.ttlMap, k.Value.(string))
 			switch n.state {
 			case 0:
-				s.mruCache.RemoveAsync(n.node)
+				s.mruCache.Remove(n.node)
 			case 1:
-				s.mfuCache.RemoveAsync(n.node)
+				s.mfuCache.Remove(n.node)
 			}
 			evicted++
 		}
 	}
-
-	// Sync the MRU and MFU
-	// in parallel.
-	var wg sync.WaitGroup
-	wg.Add(2)
-	go bgSync(&wg, s.mruCache)
-	go bgSync(&wg, s.mfuCache)
-	wg.Wait()
 
 	// Update the nearest expire.
 	// If the last TTL'd key was just expired,
@@ -362,9 +354,6 @@ func (s *Shard) promoteEvict() {
 		s.evictFromMruTail(mruOverflow)
 		s.Unlock()
 
-		s.RLock()
-		s.mruCache.Sync()
-		s.RUnlock()
 		return
 	}
 
@@ -419,7 +408,7 @@ func (s *Shard) promoteEvict() {
 			// Remove from the MRU and
 			// push to the MFU tail.
 			// Update cache state.
-			s.mruCache.RemoveAsync(node)
+			s.mruCache.Remove(node)
 			s.mfuCache.PushTailNode(node)
 			s.cacheMap[node.Value.(*cacheData).k].state = 1
 
@@ -430,10 +419,6 @@ func (s *Shard) promoteEvict() {
 		// all the overflow, return.
 		if promoted == mruOverflow {
 			s.Unlock()
-			// Synchronize the MRU cache.
-			s.RLock()
-			s.mruCache.Sync()
-			s.RUnlock()
 			return
 		}
 	}
@@ -452,9 +437,6 @@ promoteByScore:
 	// how many from the MRU keys
 	// were promoted by score.
 	var promotedByScore int
-
-	// WaitGroup for cache bgSync().
-	var wg sync.WaitGroup
 
 	// We're here on two conditions:
 	// 1) The MFU was full. We need to handle all mruToPromoteEvict (canPromote == 0).
@@ -477,13 +459,13 @@ scorePromote:
 			if mruNode.Score > mfuNode.Score {
 				// Push the evicted MFU node to the head
 				// of the MRU and update state.
-				s.mfuCache.RemoveAsync(mfuNode)
+				s.mfuCache.Remove(mfuNode)
 				s.mruCache.PushHeadNode(mfuNode)
 				s.cacheMap[mfuNode.Value.(*cacheData).k].state = 0
 
 				// Promote the MRU node to the MFU and
 				// update state.
-				s.mruCache.RemoveAsync(mruNode)
+				s.mruCache.Remove(mruNode)
 				s.mfuCache.PushTailNode(mruNode)
 				s.cacheMap[mruNode.Value.(*cacheData).k].state = 1
 
@@ -515,15 +497,6 @@ evictFromMruTail:
 	}
 
 	s.Unlock()
-
-	// Sync the MRU and MFU
-	// in parallel.
-	s.RLock()
-	wg.Add(2)
-	go bgSync(&wg, s.mruCache)
-	go bgSync(&wg, s.mfuCache)
-	wg.Wait()
-	s.RUnlock()
 }
 
 // evictFromMruTail evicts n keys from the tail
@@ -535,7 +508,7 @@ func (s *Shard) evictFromMruTail(n int) {
 		node := s.mruCache.Tail()
 		delete(s.cacheMap, node.Value.(*cacheData).k)
 		delete(s.ttlMap, node.Value.(*cacheData).k)
-		s.mruCache.RemoveTailAsync()
+		s.mruCache.RemoveTail()
 	}
 
 	// Update the ttlCount.
@@ -565,11 +538,4 @@ func (s *Shard) decrementTTLCount(n uint64) {
 	// Increment the evictions count
 	// by n, regardless.
 	atomic.AddUint64(&s.counters.evictions, n)
-}
-
-// Sll Sync handler with a WaitGroup
-// for background parallelization.
-func bgSync(wg *sync.WaitGroup, s *sll.Sll) {
-	s.Sync()
-	wg.Done()
 }
