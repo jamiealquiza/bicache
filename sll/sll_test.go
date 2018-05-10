@@ -1,7 +1,7 @@
 package sll_test
 
 import (
-	//"fmt"
+	"math/rand"
 	"testing"
 
 	"github.com/jamiealquiza/bicache/sll"
@@ -170,6 +170,79 @@ func TestLowScores(t *testing.T) {
 		t.Errorf("Expected scores position 2 node with value 3, got %d", scores[1].Read())
 	}
 }
+
+func benchmarkHeapScores(b *testing.B, l int) {
+	b.N = 1
+	b.StopTimer()
+
+	// Create/populate an sll.
+	s := sll.New(l)
+	for i := 0; i < l; i++ {
+		s.PushTail(i)
+	}
+
+	// Perform 3*sll.Len() reads
+	// on random nodes to produce
+	// random node score counts.
+	node := s.Tail()
+	for i := 0; i < 3*l; i++ {
+		node.Read()
+		for j := 0; j < rand.Intn(10); j++ {
+			node = node.Next()
+			if node == nil {
+				node = s.Tail()
+			}
+		}
+	}
+
+	b.ResetTimer()
+	b.StartTimer()
+
+	for n := 0; n < b.N; n++ {
+		// Call HighScores for
+		// 1/20th the sll len.
+		s.HighScores(l / 20)
+	}
+}
+
+func benchmarkSortScores(b *testing.B, l int) {
+	b.N = 1
+	b.StopTimer()
+
+	// Create/populate an sll.
+	s := sll.New(l)
+	for i := 0; i < l; i++ {
+		s.PushTail(i)
+	}
+
+	// Perform 3*sll.Len() reads
+	// on random nodes to produce
+	// random node score counts.
+	node := s.Tail()
+	for i := 0; i < 3*l; i++ {
+		node.Read()
+		for j := 0; j < rand.Intn(10); j++ {
+			node = node.Next()
+			if node == nil {
+				node = s.Tail()
+			}
+		}
+	}
+
+	b.ResetTimer()
+	b.StartTimer()
+
+	for n := 0; n < b.N; n++ {
+		// Call HighScores for
+		// 1/20th the sll len.
+		s.HighScores2(l / 20)
+	}
+}
+
+func BenchmarkHeapScores200K(b *testing.B) { benchmarkHeapScores(b, 200000) }
+func BenchmarkSortScores200K(b *testing.B) { benchmarkSortScores(b, 200000) }
+func BenchmarkHeapScores2M(b *testing.B)   { benchmarkHeapScores(b, 2000000) }
+func BenchmarkSortScores2M(b *testing.B)   { benchmarkSortScores(b, 2000000) }
 
 func TestScoresEmpty(t *testing.T) {
 	s := sll.New(10)

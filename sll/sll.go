@@ -37,6 +37,13 @@ func (n *Node) Prev() *Node {
 	return nil
 }
 
+func (n *Node) Copy() *Node {
+	return &Node{
+		Score: n.Score,
+		Value: n.Value,
+	}
+}
+
 // New creates a new *Sll. New takes an
 // integer length to pre-allocate a nodeScoreList
 // of capacity l. This reduces append latencies if
@@ -91,6 +98,17 @@ func (ll *Sll) Tail() *Node {
 	return ll.root.next
 }
 
+func (ll *Sll) Copy() *Sll {
+	newll := New(int(ll.Len()))
+
+	for node := ll.Head(); node != nil; node = node.Prev() {
+		c := node.Copy()
+		newll.PushTailNode(c)
+	}
+
+	return newll
+}
+
 func (ll *Sll) heapSelect(h heap.Interface, k int) {
 	if ll.Len() == 0 {
 		return
@@ -113,6 +131,29 @@ func (ll *Sll) heapSelect(h heap.Interface, k int) {
 		heap.Pop(h)
 		node = node.Next()
 	}
+}
+
+// HighScores2 takes an integer and returns the
+// respective number of *Nodes with the higest scores
+// sorted in ascending order.
+func (ll *Sll) HighScores2(r int) nodeScoreList {
+	sort.Sort(ll.scores)
+	// Return what's available
+	// if more is being requested
+	// than exists.
+	if r > len(ll.scores) {
+		scores := make(nodeScoreList, len(ll.scores))
+		copy(scores, ll.scores)
+		return scores
+	}
+
+	// We return a copy because the
+	// underlying array order will
+	// possibly change.
+	scores := make(nodeScoreList, r)
+	copy(scores, ll.scores[len(ll.scores)-r:])
+
+	return scores
 }
 
 // HighScores takes an integer and returns the
@@ -298,7 +339,7 @@ func (ll *Sll) RemoveTailAsync() {
 // This is typically called subsequent to
 // many AsyncRemove ops.
 func (ll *Sll) Sync() {
-	// Prep an allocation-free filter slice.
+	// Filter slice.
 	newScoreList := ll.scores[:0]
 
 	// Traverse and exclude nodes
