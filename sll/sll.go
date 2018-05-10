@@ -8,8 +8,8 @@ import (
 
 // Sll is a scored linked list.
 type Sll struct {
-	root   *Node
-	scores nodeScoreList
+	root *Node
+	len  uint64
 }
 
 // Node is a scored linked list node.
@@ -44,14 +44,10 @@ func (n *Node) Copy() *Node {
 	}
 }
 
-// New creates a new *Sll. New takes an
-// integer length to pre-allocate a nodeScoreList
-// of capacity l. This reduces append latencies if
-// many elements are inserted into a new list.
-func New(l int) *Sll {
+// New creates a new *Sll.
+func New() *Sll {
 	ll := &Sll{
-		root:   &Node{},
-		scores: make(nodeScoreList, 0, l),
+		root: &Node{},
 	}
 
 	ll.root.next, ll.root.prev = ll.root, ll.root
@@ -85,7 +81,7 @@ func (nsl nodeScoreList) Swap(i, j int) {
 
 // Len returns the count of nodes in the *Sll.
 func (ll *Sll) Len() uint {
-	return uint(len(ll.scores))
+	return uint(ll.len)
 }
 
 // Head returns the head *Node.
@@ -98,8 +94,9 @@ func (ll *Sll) Tail() *Node {
 	return ll.root.next
 }
 
+// Copy returns a copy of a *Sll.
 func (ll *Sll) Copy() *Sll {
-	newll := New(int(ll.Len()))
+	newll := New()
 
 	for node := ll.Head(); node != nil; node = node.Prev() {
 		c := node.Copy()
@@ -107,29 +104,6 @@ func (ll *Sll) Copy() *Sll {
 	}
 
 	return newll
-}
-
-// HighScores2 takes an integer and returns the
-// respective number of *Nodes with the higest scores
-// sorted in ascending order.
-func (ll *Sll) HighScores2(r int) nodeScoreList {
-	sort.Sort(ll.scores)
-	// Return what's available
-	// if more is being requested
-	// than exists.
-	if r > len(ll.scores) {
-		scores := make(nodeScoreList, len(ll.scores))
-		copy(scores, ll.scores)
-		return scores
-	}
-
-	// We return a copy because the
-	// underlying array order will
-	// possibly change.
-	scores := make(nodeScoreList, r)
-	copy(scores, ll.scores[len(ll.scores)-r:])
-
-	return scores
 }
 
 // HighScores takes an integer and returns the
@@ -273,8 +247,7 @@ func (ll *Sll) PushHead(v interface{}) *Node {
 		list:  ll,
 	}
 
-	// Add to scores and insert.
-	ll.scores = append(ll.scores, n)
+	atomic.AddUint64(&ll.len, 1)
 	insertAt(n, ll.root.prev)
 
 	return n
@@ -289,8 +262,7 @@ func (ll *Sll) PushTail(v interface{}) *Node {
 		list:  ll,
 	}
 
-	// Add to scores and insert.
-	ll.scores = append(ll.scores, n)
+	atomic.AddUint64(&ll.len, 1)
 	insertAt(n, ll.root)
 
 	return n
@@ -301,8 +273,7 @@ func (ll *Sll) PushTail(v interface{}) *Node {
 func (ll *Sll) PushHeadNode(n *Node) {
 	n.list = ll
 
-	// Add to scores and insert.
-	ll.scores = append(ll.scores, n)
+	atomic.AddUint64(&ll.len, 1)
 	insertAt(n, ll.root.prev)
 }
 
@@ -311,8 +282,8 @@ func (ll *Sll) PushHeadNode(n *Node) {
 func (ll *Sll) PushTailNode(n *Node) {
 	n.list = ll
 
-	// Add to scores and insert.
-	ll.scores = append(ll.scores, n)
+	// Increment len.
+	atomic.AddUint64(&ll.len, 1)
 	insertAt(n, ll.root)
 }
 
@@ -320,29 +291,12 @@ func (ll *Sll) PushTailNode(n *Node) {
 func (ll *Sll) Remove(n *Node) {
 	// Link next/prev nodes.
 	n.next.prev, n.prev.next = n.prev, n.next
-	// Remove references.
-	n.next, n.prev = nil, nil
-	//Update scores.
-	ll.removeFromScores(n)
-}
 
-// RemoveAsync removes a *Node from the *Sll
-// and marks the node for removal. This is
-// useful if a batch of many nodes are being
-// removed, at the cost of the node score list
-// being out of sync.
-// The node score list must be updated
-// with a subsequent call of the Sync() method
-// once all desired nodes have been removed.
-func (ll *Sll) RemoveAsync(n *Node) {
-	// Link next/prev nodes.
-	n.next.prev, n.prev.next = n.prev, n.next
 	// Remove references.
 	n.next, n.prev = nil, nil
-	// Unset the parent list.
-	// This is used as a removal marker
-	// in the Sync() function.
-	n.list = nil
+
+	// Decrement len.
+	atomic.AddUint64(&ll.len, ^uint64(0))
 }
 
 // RemoveHead removes the current *Sll.head.
@@ -353,79 +307,4 @@ func (ll *Sll) RemoveHead() {
 // RemoveTail removes the current *Sll.tail.s
 func (ll *Sll) RemoveTail() {
 	ll.Remove(ll.root.next)
-}
-
-// RemoveHeadAsync removes the current *Sll.head
-// using the RemoveAsync method.
-func (ll *Sll) RemoveHeadAsync() {
-	ll.RemoveAsync(ll.root.prev)
-}
-
-// RemoveTailAsync removes the current *Sll.tail
-// using the RemoveAsync method.
-func (ll *Sll) RemoveTailAsync() {
-	ll.RemoveAsync(ll.root.next)
-}
-
-// Sync traverses the node score list
-// and removes any marked for removal.
-// This is typically called subsequent to
-// many AsyncRemove ops.
-func (ll *Sll) Sync() {
-	// Filter slice.
-	newScoreList := ll.scores[:0]
-
-	// Traverse and exclude nodes
-	// marked for removal.
-	for n := range ll.scores {
-		if ll.scores[n].list == ll {
-			newScoreList = append(newScoreList, ll.scores[n])
-		} else {
-			// If a node is marked for removal,
-			// nil the entry to avoid leaks.
-			ll.scores[n] = nil
-		}
-	}
-
-	// Update the ll.scores.
-	ll.scores = newScoreList
-}
-
-// removeFromScores removes n from the nodeScoreList scores.
-func (ll *Sll) removeFromScores(n *Node) {
-	// Unrolling with 5 elements
-	// has cut CPU-cached small element
-	// slice search times in half. Needs further testing.
-	// This will cause an out of bounds crash if the
-	// element we're searching for somehow doesn't exist
-	// (as a result of some other bug).
-	var i int
-	for p := 0; p < len(ll.scores); p += 5 {
-		if ll.scores[p] == n {
-			i = p
-			break
-		}
-		if ll.scores[p+1] == n {
-			i = p + 1
-			break
-		}
-		if ll.scores[p+2] == n {
-			i = p + 2
-			break
-		}
-		if ll.scores[p+3] == n {
-			i = p + 3
-			break
-		}
-		if ll.scores[p+4] == n {
-			i = p + 4
-			break
-		}
-	}
-
-	// Set the item to nil
-	// to remove the reference in the
-	// underlying slice array.
-	ll.scores[i] = nil
-	ll.scores = append(ll.scores[:i], ll.scores[i+1:]...)
 }
