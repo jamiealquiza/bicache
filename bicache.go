@@ -4,6 +4,7 @@ package bicache
 
 import (
 	"container/list"
+	"context"
 	"errors"
 	"log"
 	"math"
@@ -24,6 +25,7 @@ type Bicache struct {
 	ShardCount uint32
 	Size       int
 	paused     uint32
+	done       context.CancelFunc
 }
 
 // Shard implements a cache unit
@@ -137,10 +139,13 @@ func New(c *Config) (*Bicache, error) {
 		}
 	}
 
+	ctx, cf := context.WithCancel(context.Background())
+
 	cache := &Bicache{
 		shards:     shards,
 		ShardCount: uint32(c.ShardCount),
 		Size:       (mfuSize + mruSize) * c.ShardCount,
+		done:       cf,
 	}
 
 	// Initialize a background goroutine
@@ -149,15 +154,24 @@ func New(c *Config) (*Bicache, error) {
 	if c.AutoEvict > 0 {
 		cache.autoEvict = true
 		iter := time.Duration(c.AutoEvict)
-		go bgAutoEvict(cache, iter, c)
+		go bgAutoEvict(ctx, cache, iter, c)
 	}
 
 	return cache, nil
 }
 
+// Close stops background tasks and
+// releases any resources. This should be
+// called before removing a reference to
+// a *Bicache if it's desired to be garbage
+// collected cleanly.
+func (b *Bicache) Close() {
+	b.done()
+}
+
 // bgAutoEvict calls evictTTL and promoteEvict for all shards
 // sequentially on the configured iter time interval.
-func bgAutoEvict(b *Bicache, iter time.Duration, c *Config) {
+func bgAutoEvict(ctx context.Context, b *Bicache, iter time.Duration, c *Config) {
 	ttlTachy := tachymeter.New(&tachymeter.Config{Size: c.ShardCount})
 	promoTachy := tachymeter.New(&tachymeter.Config{Size: c.ShardCount})
 	interval := time.NewTicker(time.Millisecond * iter)
@@ -168,66 +182,71 @@ func bgAutoEvict(b *Bicache, iter time.Duration, c *Config) {
 
 	var ttlStats, promoStats *tachymeter.Metrics
 
-	// On the auto eviction interval,
-	// we loop through each shard
-	// and trigger a TTL and promotion/eviction.
-	for _ = range interval.C {
-		// Skip this interval if
-		// evictions are paused.
-		if atomic.LoadUint32(&b.paused) == 1 {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-interval.C:
+			// Skip this interval if
+			// evictions are paused.
+			if atomic.LoadUint32(&b.paused) == 1 {
+				if c.EvictLog {
+					log.Printf("[Bicache] Evictions Paused")
+				}
+				continue
+			}
+
+			// On the auto eviction interval,
+			// we loop through each shard
+			// and trigger a TTL and promotion/eviction.
+			for _, s := range b.shards {
+				// Run ttl evictions.
+				start = time.Now()
+				evicted = 0
+
+				// At the very first check, nearestExpire
+				// was set to the Bicache initialization time.
+				// This is certain to run at least once.
+				// The first and real nearest expire will be set
+				// in any SetTTL call that's made.
+				if s.nearestExpire.Before(start.Add(iter)) {
+					evicted = s.evictTTL()
+				}
+
+				if c.EvictLog && evicted > 0 {
+					ttlTachy.AddTime(time.Since(start))
+				}
+
+				// Run promotions/overflow evictions.
+				start = time.Now()
+				s.promoteEvict()
+
+				if c.EvictLog {
+					promoTachy.AddTime(time.Since(start))
+				}
+			}
+
+			// Calc eviction/promo stats.
+			ttlStats = ttlTachy.Calc()
+			promoStats = promoTachy.Calc()
+
 			if c.EvictLog {
-				log.Printf("[Bicache] Evictions Paused")
+				// Log TTL stats if a
+				// TTL eviction was triggered.
+				if ttlStats.Count > 0 {
+					log.Printf("[Bicache EvictTTL] cumulative: %s | min: %s | max: %s\n",
+						ttlStats.Time.Cumulative, ttlStats.Time.Min, ttlStats.Time.Max)
+				}
+
+				// Log PromoteEvict stats.
+				log.Printf("[Bicache PromoteEvict] cumulative: %s | min: %s | max: %s\n",
+					promoStats.Time.Cumulative, promoStats.Time.Min, promoStats.Time.Max)
 			}
-			continue
+
+			// Reset tachymeter.
+			ttlTachy.Reset()
+			promoTachy.Reset()
 		}
-
-		for _, s := range b.shards {
-			// Run ttl evictions.
-			start = time.Now()
-			evicted = 0
-
-			// At the very first check, nearestExpire
-			// was set to the Bicache initialization time.
-			// This is certain to run at least once.
-			// The first and real nearest expire will be set
-			// in any SetTTL call that's made.
-			if s.nearestExpire.Before(start.Add(iter)) {
-				evicted = s.evictTTL()
-			}
-
-			if c.EvictLog && evicted > 0 {
-				ttlTachy.AddTime(time.Since(start))
-			}
-
-			// Run promotions/overflow evictions.
-			start = time.Now()
-			s.promoteEvict()
-
-			if c.EvictLog {
-				promoTachy.AddTime(time.Since(start))
-			}
-		}
-
-		// Calc eviction/promo stats.
-		ttlStats = ttlTachy.Calc()
-		promoStats = promoTachy.Calc()
-
-		if c.EvictLog {
-			// Log TTL stats if a
-			// TTL eviction was triggered.
-			if ttlStats.Count > 0 {
-				log.Printf("[Bicache EvictTTL] cumulative: %s | min: %s | max: %s\n",
-					ttlStats.Time.Cumulative, ttlStats.Time.Min, ttlStats.Time.Max)
-			}
-
-			// Log PromoteEvict stats.
-			log.Printf("[Bicache PromoteEvict] cumulative: %s | min: %s | max: %s\n",
-				promoStats.Time.Cumulative, promoStats.Time.Min, promoStats.Time.Max)
-		}
-
-		// Reset tachymeter.
-		ttlTachy.Reset()
-		promoTachy.Reset()
 	}
 }
 
