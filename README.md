@@ -73,7 +73,14 @@ c.Pause()
 c.Resume()
 ```
 
-Pause and Resume allow auto evictions to be suspended and resumed, respectively. If eviction logging is enabled and evictions are paused, bicache will log accordingly. 
+Pause and Resume allow auto evictions to be suspended and resumed, respectively. If eviction logging is enabled and evictions are paused, bicache will log accordingly.
+
+### Close()
+```go
+c.Close()
+```
+
+Close should be called when a \*Bicache is done being used, before removing any references to it, to ensure any background tasks have returned and that it can be cleanly garbage collected.
 
 ### Stats()
 ```go
@@ -134,7 +141,7 @@ Tested with Go 1.7+.
 
 ### Shard counts
 
-Shards must be sized in powers of 2. Shards are relatively inexpensive to manage but should not be arbitrarily high. Shard sizing should be relative to desired cache sizes and workload; more key space and greater write concurrency/rates are better suited with more shards. "Normal" sizes might be 8 shards for simple testing and 1024 shards for production workloads that experience tens of thousands (or more) of cache lookups a second. 
+Shards must be sized in powers of 2. Shards are relatively inexpensive to manage but should not be arbitrarily high. Shard sizing should be relative to desired cache sizes and workload; more key space and greater write concurrency/rates are better suited with more shards. "Normal" sizes might be 8 shards for simple testing and 1024 shards for production workloads that experience tens of thousands (or more) of cache lookups a second.
 
 ### Cache sizes
 
