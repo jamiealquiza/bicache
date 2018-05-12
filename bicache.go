@@ -551,7 +551,7 @@ func (s *Shard) decrementTTLCount(n uint64) {
 	if s.ttlCount-n > s.ttlCount {
 		atomic.StoreUint64(&s.ttlCount, 0)
 	} else {
-		atomic.StoreUint64(&s.ttlCount, ^uint64(n-1))
+		atomic.AddUint64(&s.ttlCount, ^uint64(n-1))
 	}
 
 	// Increment the evictions count
