@@ -58,9 +58,9 @@ func New() *Sll {
 	return ll
 }
 
-// nodeScoreList holds a slice of *Node
-// for sorting by score.
-type nodeScoreList []*Node
+// NodeScoreList is a slice of *Node
+// sorted by ascending scores.
+type NodeScoreList []*Node
 
 // Read returns a *Node Value and increments the score.
 func (n *Node) Read() interface{} {
@@ -68,17 +68,17 @@ func (n *Node) Read() interface{} {
 	return n.Value
 }
 
-// nodeScoreList methods to satisfy the sort interface.
+// NodeScoreList methods to satisfy the sort interface.
 
-func (nsl nodeScoreList) Len() int {
+func (nsl NodeScoreList) Len() int {
 	return len(nsl)
 }
 
-func (nsl nodeScoreList) Less(i, j int) bool {
+func (nsl NodeScoreList) Less(i, j int) bool {
 	return atomic.LoadUint64(&nsl[i].Score) < atomic.LoadUint64(&nsl[j].Score)
 }
 
-func (nsl nodeScoreList) Swap(i, j int) {
+func (nsl NodeScoreList) Swap(i, j int) {
 	nsl[i], nsl[j] = nsl[j], nsl[i]
 }
 
@@ -112,11 +112,11 @@ func (ll *Sll) Copy() *Sll {
 // HighScores takes an integer and returns the
 // respective number of *Nodes with the higest scores
 // sorted in ascending order.
-func (ll *Sll) HighScores(k int) nodeScoreList {
+func (ll *Sll) HighScores(k int) NodeScoreList {
 	h := &MinHeap{}
 
 	if ll.Len() == 0 {
-		return nodeScoreList(*h)
+		return NodeScoreList(*h)
 	}
 
 	heap.Init(h)
@@ -146,7 +146,7 @@ func (ll *Sll) HighScores(k int) nodeScoreList {
 		}
 	}
 
-	scores := nodeScoreList(*h)
+	scores := NodeScoreList(*h)
 	sort.Sort(scores)
 
 	return scores
@@ -155,11 +155,11 @@ func (ll *Sll) HighScores(k int) nodeScoreList {
 // LowScores takes an integer and returns the
 // respective number of *Nodes with the lowest scores
 // sorted in ascending order.
-func (ll *Sll) LowScores(k int) nodeScoreList {
+func (ll *Sll) LowScores(k int) NodeScoreList {
 	h := &MaxHeap{}
 
 	if ll.Len() == 0 {
-		return nodeScoreList(*h)
+		return NodeScoreList(*h)
 	}
 
 	// In a low scores selection,
@@ -186,7 +186,7 @@ func (ll *Sll) LowScores(k int) nodeScoreList {
 		}
 	}
 
-	scores := nodeScoreList(*h)
+	scores := NodeScoreList(*h)
 	sort.Sort(scores)
 
 	return scores
@@ -204,7 +204,7 @@ func insertAt(n, at *Node) {
 // pull removes a *Node from
 // its position in the *Sll, but
 // doesn't remove the node from
-// the nodeScoreList. This is used for
+// the NodeScoreList. This is used for
 // repositioning nodes.
 func pull(n *Node) {
 	// Link next/prev nodes.
