@@ -102,7 +102,7 @@ type Stats struct {
 }
 
 // New takes a *Config and returns
-// an initialized *Shard.
+// an initialized *Bicache.
 func New(c *Config) (*Bicache, error) {
 	// Check that ShardCount is a power of 2.
 	if (c.ShardCount & (c.ShardCount - 1)) != 0 {

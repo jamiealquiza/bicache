@@ -21,6 +21,7 @@ type Node struct {
 	Value interface{}
 }
 
+// Next returns the next node in the *Sll.
 func (n *Node) Next() *Node {
 	if n.next != n.list.root {
 		return n.next
@@ -29,6 +30,7 @@ func (n *Node) Next() *Node {
 	return nil
 }
 
+// Prev returns the previous node in the *Sll.
 func (n *Node) Prev() *Node {
 	if n.prev != n.list.root {
 		return n.prev
@@ -37,6 +39,7 @@ func (n *Node) Prev() *Node {
 	return nil
 }
 
+// Copy returns a copy of a *Node.
 func (n *Node) Copy() *Node {
 	return &Node{
 		Score: n.Score,

@@ -42,7 +42,7 @@ func main() {
 
 	ticker := time.NewTicker(10 * time.Second)
 
-	for _ = range ticker.C {
+	for range ticker.C {
 		fmt.Printf("\n> Writes:\n")
 		writeT.Calc().Dump()
 
