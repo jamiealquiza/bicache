@@ -1,8 +1,8 @@
 Excerpts:
 ```go
 c, _ := bicache.New(&bicache.Config{
-	MfuSize:   50000,
-	MruSize:   25000,
+	MFUSize:   50000,
+	MRUSize:   25000,
 	AutoEvict: 1000,
 })
 
@@ -50,7 +50,7 @@ Max:		281.841µs
 Min:		82ns
 Rate/sec.:	5196912.04
 
-{"MfuSize":0,"MruSize":100000,"MfuUsedP":0,"MruUsedP":200,"Hits":100010,"Misses":0,"Evictions":0}
+{"MFUSize":0,"MRUSize":100000,"MFUUsedP":0,"MRUUsedP":200,"Hits":100010,"Misses":0,"Evictions":0}
 ```
 
 Note: timing data via [tachymeter](https://github.com/jamiealquiza/tachymeter)

@@ -21,8 +21,8 @@ func TestNew(t *testing.T) {
 	// minimum for the number of shards specified.
 	for _, n := range configExpected {
 		c, _ := bicache.New(&bicache.Config{
-			MfuSize:    uint(n[0]),
-			MruSize:    uint(n[1]),
+			MFUSize:    uint(n[0]),
+			MRUSize:    uint(n[1]),
 			ShardCount: n[2],
 		})
 
@@ -34,8 +34,8 @@ func TestNew(t *testing.T) {
 
 func TestStats(t *testing.T) {
 	c, _ := bicache.New(&bicache.Config{
-		MfuSize:    10,
-		MruSize:    30,
+		MFUSize:    10,
+		MRUSize:    30,
 		ShardCount: 2,
 		AutoEvict:  3000,
 	})
@@ -53,20 +53,20 @@ func TestStats(t *testing.T) {
 
 	stats := c.Stats()
 
-	if stats.MfuSize != 10 {
-		t.Errorf("Expected MFU size 10, got %d", stats.MfuSize)
+	if stats.MFUSize != 10 {
+		t.Errorf("Expected MFU size 10, got %d", stats.MFUSize)
 	}
 
-	if stats.MruSize != 30 {
-		t.Errorf("Expected MRU size 30, got %d", stats.MruSize)
+	if stats.MRUSize != 30 {
+		t.Errorf("Expected MRU size 30, got %d", stats.MRUSize)
 	}
 
-	if stats.MfuUsedP != 100 {
-		t.Errorf("Expected MFU usedp 100, got %d", stats.MfuUsedP)
+	if stats.MFUUsedP != 100 {
+		t.Errorf("Expected MFU usedp 100, got %d", stats.MFUUsedP)
 	}
 
-	if stats.MruUsedP != 100 {
-		t.Errorf("Expected MRU usedp 100, got %d", stats.MruUsedP)
+	if stats.MRUUsedP != 100 {
+		t.Errorf("Expected MRU usedp 100, got %d", stats.MRUUsedP)
 	}
 
 	if stats.Hits != 100 {
@@ -88,8 +88,8 @@ func TestStats(t *testing.T) {
 
 func TestEvictTtl(t *testing.T) {
 	c, _ := bicache.New(&bicache.Config{
-		MfuSize:    10,
-		MruSize:    30,
+		MFUSize:    10,
+		MRUSize:    30,
 		ShardCount: 2,
 		AutoEvict:  1000,
 	})
@@ -111,7 +111,7 @@ func TestEvictTtl(t *testing.T) {
 
 	stats := c.Stats()
 
-	if stats.MruSize != 1 || stats.Evictions != 1 {
+	if stats.MRUSize != 1 || stats.Evictions != 1 {
 		t.Error("Unexpected stats")
 	}
 }
@@ -119,8 +119,8 @@ func TestEvictTtl(t *testing.T) {
 func TestPromoteEvict(t *testing.T) {
 	// Also covers MRU tail eviction.
 	c, _ := bicache.New(&bicache.Config{
-		MfuSize:    10,
-		MruSize:    30,
+		MFUSize:    10,
+		MRUSize:    30,
 		ShardCount: 2,
 		AutoEvict:  5000,
 	})
@@ -150,11 +150,11 @@ func TestPromoteEvict(t *testing.T) {
 
 	stats := c.Stats()
 
-	if stats.MfuSize != 3 {
+	if stats.MFUSize != 3 {
 		t.Error("Unexpected MFU count")
 	}
 
-	if stats.MruSize != 30 {
+	if stats.MRUSize != 30 {
 		t.Error("Unexpected MRU count")
 	}
 

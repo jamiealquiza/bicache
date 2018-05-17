@@ -63,8 +63,8 @@ type counters struct {
 // defers the operation until each Set is called
 // on the bicache.
 type Config struct {
-	MfuSize    uint
-	MruSize    uint
+	MFUSize    uint
+	MRUSize    uint
 	AutoEvict  uint
 	EvictLog   bool
 	ShardCount int
@@ -91,10 +91,10 @@ type cacheData struct {
 // Stats holds Bicache
 // statistics data.
 type Stats struct {
-	MfuSize   uint   // Number of acive MFU keys.
-	MruSize   uint   // Number of active MRU keys.
-	MfuUsedP  uint   // MFU used in percent.
-	MruUsedP  uint   // MRU used in percent.
+	MFUSize   uint   // Number of acive MFU keys.
+	MRUSize   uint   // Number of active MRU keys.
+	MFUUsedP  uint   // MFU used in percent.
+	MRUUsedP  uint   // MRU used in percent.
 	Hits      uint64 // Cache hits.
 	Misses    uint64 // Cache misses.
 	Evictions uint64 // Cache evictions.
@@ -109,7 +109,7 @@ func New(c *Config) (*Bicache, error) {
 		return nil, errors.New("Shard count must be a power of 2")
 	}
 
-	if c.MruSize <= 0 {
+	if c.MRUSize <= 0 {
 		return nil, errors.New("MRU size must be > 0")
 	}
 
@@ -121,8 +121,8 @@ func New(c *Config) (*Bicache, error) {
 	shards := make([]*Shard, c.ShardCount)
 
 	// Get cache sizes for each shard.
-	mfuSize := int(math.Ceil(float64(c.MfuSize) / float64(c.ShardCount)))
-	mruSize := int(math.Ceil(float64(c.MruSize) / float64(c.ShardCount)))
+	mfuSize := int(math.Ceil(float64(c.MFUSize) / float64(c.ShardCount)))
+	mruSize := int(math.Ceil(float64(c.MRUSize) / float64(c.ShardCount)))
 
 	// Init shards.
 	for i := 0; i < c.ShardCount; i++ {
@@ -258,8 +258,8 @@ func (b *Bicache) Stats() *Stats {
 
 	for _, s := range b.shards {
 		s.RLock()
-		stats.MfuSize += s.mfuCache.Len()
-		stats.MruSize += s.mruCache.Len()
+		stats.MFUSize += s.mfuCache.Len()
+		stats.MRUSize += s.mruCache.Len()
 		s.RUnlock()
 
 		mfuCap += float64(s.mfuCap)
@@ -271,12 +271,12 @@ func (b *Bicache) Stats() *Stats {
 		stats.Overflows += atomic.LoadUint64(&s.counters.overflows)
 	}
 
-	stats.MruUsedP = uint(float64(stats.MruSize) / mruCap * 100)
+	stats.MRUUsedP = uint(float64(stats.MRUSize) / mruCap * 100)
 	// Prevent incorrect stats in MRU-only mode.
 	if mfuCap > 0 {
-		stats.MfuUsedP = uint(float64(stats.MfuSize) / mfuCap * 100)
+		stats.MFUUsedP = uint(float64(stats.MFUSize) / mfuCap * 100)
 	} else {
-		stats.MfuUsedP = 0
+		stats.MFUUsedP = 0
 	}
 
 	return stats
@@ -354,7 +354,7 @@ func (s *Shard) evictTTL() int {
 }
 
 // promoteEvict checks if the MRU exceeds the
-// Config.MruSize (overflow count) If so, the top <overflow count>
+// Config.MRUSize (overflow count) If so, the top <overflow count>
 // MRU scores are checked against the MFU. If any of the top MRU scores
 // are greater than the lowest MFU scores, they are promoted
 // to the MFU (if possible). Any remaining overflow count
@@ -370,7 +370,7 @@ func (s *Shard) promoteEvict() {
 	// LRU-only behavior.
 	if s.mfuCap == 0 {
 		s.Lock()
-		s.evictFromMruTail(mruOverflow)
+		s.evictFromMRUTail(mruOverflow)
 		s.Unlock()
 
 		return
@@ -462,19 +462,19 @@ promoteByScore:
 	// 2) We promoted some mruToPromoteEvict and have leftovers (canPromote > 0).
 
 	// Get top MRU scores and bottom MFU scores to compare.
-	bottomMfu := s.mfuCache.LowScores(mruOverflow)
+	bottomMFU := s.mfuCache.LowScores(mruOverflow)
 
 	// If the lowest MFU score is higher than the lowest
 	// score to promote, none of these are eligible.
-	if len(bottomMfu) == 0 || bottomMfu[0].Score >= mruToPromoteEvict[remainderPosition].Score {
-		goto evictFromMruTail
+	if len(bottomMFU) == 0 || bottomMFU[0].Score >= mruToPromoteEvict[remainderPosition].Score {
+		goto evictFromMRUTail
 	}
 
 	// Otherwise, scan for a replacement.
 	s.Lock()
 scorePromote:
 	for _, mruNode := range mruToPromoteEvict[remainderPosition:] {
-		for i, mfuNode := range bottomMfu {
+		for i, mfuNode := range bottomMFU {
 			if mruNode.Score > mfuNode.Score {
 				// Push the evicted MFU node to the head
 				// of the MRU and update state.
@@ -491,11 +491,11 @@ scorePromote:
 				promotedByScore++
 
 				// Remove the replaced MFU node from the
-				// bottomMfu list so it's not attempted twice.
-				bottomMfu = append(bottomMfu[:i], bottomMfu[i+1:]...)
+				// bottomMFU list so it's not attempted twice.
+				bottomMFU = append(bottomMFU[:i], bottomMFU[i+1:]...)
 				break
 			}
-			if i == len(bottomMfu)-1 {
+			if i == len(bottomMFU)-1 {
 				break scorePromote
 			}
 		}
@@ -504,7 +504,7 @@ scorePromote:
 
 	s.Unlock()
 
-evictFromMruTail:
+evictFromMRUTail:
 
 	s.Lock()
 
@@ -512,15 +512,15 @@ evictFromMruTail:
 	toEvict := mruOverflow - promotedByScore
 	// Evict this many from the MRU tail.
 	if toEvict > 0 {
-		s.evictFromMruTail(toEvict)
+		s.evictFromMRUTail(toEvict)
 	}
 
 	s.Unlock()
 }
 
-// evictFromMruTail evicts n keys from the tail
+// evictFromMRUTail evicts n keys from the tail
 // of the MRU cache.
-func (s *Shard) evictFromMruTail(n int) {
+func (s *Shard) evictFromMRUTail(n int) {
 	ttlStart := len(s.ttlMap)
 
 	for i := 0; i < n; i++ {

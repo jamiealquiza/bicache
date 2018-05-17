@@ -214,8 +214,8 @@ func (b *Bicache) List(n int) ListResults {
 	return lr
 }
 
-// FlushMru flushes all MRU entries.
-func (b *Bicache) FlushMru() error {
+// FlushMRU flushes all MRU entries.
+func (b *Bicache) FlushMRU() error {
 	// Traverse shards.
 	for _, s := range b.shards {
 		s.Lock()
@@ -236,8 +236,8 @@ func (b *Bicache) FlushMru() error {
 	return nil
 }
 
-// FlushMfu flushes all MFU entries.
-func (b *Bicache) FlushMfu() error {
+// FlushMFU flushes all MFU entries.
+func (b *Bicache) FlushMFU() error {
 	// Traverse shards.
 	for _, s := range b.shards {
 		s.Lock()
@@ -260,7 +260,7 @@ func (b *Bicache) FlushMfu() error {
 
 // FlushAll flushes all cache entries.
 // Flush all is much faster than combining both a
-// FlushMru and FlushMfu call.
+// FlushMRU and FlushMFU call.
 func (b *Bicache) FlushAll() error {
 	// Traverse and reset shard caches.
 	for _, s := range b.shards {

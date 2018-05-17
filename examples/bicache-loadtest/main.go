@@ -24,8 +24,8 @@ func main() {
 	flag.Parse()
 
 	c, _ := bicache.New(&bicache.Config{
-		MfuSize:    uint(*mfu),
-		MruSize:    uint(*mru),
+		MFUSize:    uint(*mfu),
+		MRUSize:    uint(*mru),
 		AutoEvict:  uint(*evict * 1000),
 		EvictLog:   true,
 		ShardCount: 1024,

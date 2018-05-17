@@ -15,8 +15,8 @@ func BenchmarkGet(b *testing.B) {
 	b.StopTimer()
 
 	c, _ := bicache.New(&bicache.Config{
-		MfuSize:    10000,
-		MruSize:    600000,
+		MFUSize:    10000,
+		MRUSize:    600000,
 		ShardCount: 1024,
 		AutoEvict:  30000,
 	})
@@ -38,8 +38,8 @@ func BenchmarkSet(b *testing.B) {
 	b.StopTimer()
 
 	c, _ := bicache.New(&bicache.Config{
-		MfuSize:    10000,
-		MruSize:    600000,
+		MFUSize:    10000,
+		MRUSize:    600000,
 		ShardCount: 1024,
 		AutoEvict:  30000,
 	})
@@ -60,8 +60,8 @@ func BenchmarkSetTTL(b *testing.B) {
 	b.StopTimer()
 
 	c, _ := bicache.New(&bicache.Config{
-		MfuSize:    10000,
-		MruSize:    600000,
+		MFUSize:    10000,
+		MRUSize:    600000,
 		ShardCount: 1024,
 		AutoEvict:  30000,
 	})
@@ -82,8 +82,8 @@ func BenchmarkDel(b *testing.B) {
 	b.StopTimer()
 
 	c, _ := bicache.New(&bicache.Config{
-		MfuSize:    10000,
-		MruSize:    600000,
+		MFUSize:    10000,
+		MRUSize:    600000,
 		ShardCount: 1024,
 		AutoEvict:  30000,
 	})
@@ -108,8 +108,8 @@ func BenchmarkList(b *testing.B) {
 	b.StopTimer()
 
 	c, _ := bicache.New(&bicache.Config{
-		MfuSize:    10000,
-		MruSize:    600000,
+		MFUSize:    10000,
+		MRUSize:    600000,
 		ShardCount: 1024,
 		AutoEvict:  30000,
 	})
@@ -134,8 +134,8 @@ func BenchmarkList(b *testing.B) {
 
 func TestSetGet(t *testing.T) {
 	c, _ := bicache.New(&bicache.Config{
-		MfuSize:    10,
-		MruSize:    30,
+		MFUSize:    10,
+		MRUSize:    30,
 		ShardCount: 2,
 		AutoEvict:  10000,
 	})
@@ -162,8 +162,8 @@ func TestSetGet(t *testing.T) {
 
 func TestSetTTL(t *testing.T) {
 	c, _ := bicache.New(&bicache.Config{
-		MfuSize:    10,
-		MruSize:    30,
+		MFUSize:    10,
+		MRUSize:    30,
 		ShardCount: 2,
 		AutoEvict:  1000,
 	})
@@ -187,8 +187,8 @@ func TestSetTTL(t *testing.T) {
 
 func TestDel(t *testing.T) {
 	c, _ := bicache.New(&bicache.Config{
-		MfuSize:    10,
-		MruSize:    30,
+		MFUSize:    10,
+		MRUSize:    30,
 		ShardCount: 2,
 		AutoEvict:  10000,
 	})
@@ -202,15 +202,15 @@ func TestDel(t *testing.T) {
 
 	stats := c.Stats()
 
-	if stats.MruSize != 0 {
-		t.Errorf("Expected MRU size 0, got %d", stats.MruSize)
+	if stats.MRUSize != 0 {
+		t.Errorf("Expected MRU size 0, got %d", stats.MRUSize)
 	}
 }
 
 func TestList(t *testing.T) {
 	c, _ := bicache.New(&bicache.Config{
-		MfuSize:    10,
-		MruSize:    30,
+		MFUSize:    10,
+		MRUSize:    30,
 		ShardCount: 2,
 		AutoEvict:  1000,
 	})
@@ -256,10 +256,10 @@ func TestList(t *testing.T) {
 	}
 }
 
-func TestFlushMru(t *testing.T) {
+func TestFlushMRU(t *testing.T) {
 	c, _ := bicache.New(&bicache.Config{
-		MfuSize:    10,
-		MruSize:    30,
+		MFUSize:    10,
+		MRUSize:    30,
 		ShardCount: 1,
 		AutoEvict:  1000,
 	})
@@ -270,23 +270,23 @@ func TestFlushMru(t *testing.T) {
 
 	// Check before.
 	stats := c.Stats()
-	if stats.MruSize != 30 {
-		t.Errorf("Expected MFU size of 30, got %d", stats.MfuSize)
+	if stats.MRUSize != 30 {
+		t.Errorf("Expected MFU size of 30, got %d", stats.MFUSize)
 	}
 
-	c.FlushMru()
+	c.FlushMRU()
 
 	// Check after.
 	stats = c.Stats()
-	if stats.MruSize != 0 {
-		t.Errorf("Expected MRU size of 0, got %d", stats.MruSize)
+	if stats.MRUSize != 0 {
+		t.Errorf("Expected MRU size of 0, got %d", stats.MRUSize)
 	}
 }
 
-func TestFlushMfu(t *testing.T) {
+func TestFlushMFU(t *testing.T) {
 	c, _ := bicache.New(&bicache.Config{
-		MfuSize:    10,
-		MruSize:    30,
+		MFUSize:    10,
+		MRUSize:    30,
 		ShardCount: 1,
 		AutoEvict:  1000,
 	})
@@ -321,23 +321,23 @@ func TestFlushMfu(t *testing.T) {
 
 	// Check before.
 	stats := c.Stats()
-	if stats.MfuSize != 3 {
-		t.Errorf("Expected MFU size of 3, got %d", stats.MfuSize)
+	if stats.MFUSize != 3 {
+		t.Errorf("Expected MFU size of 3, got %d", stats.MFUSize)
 	}
 
-	c.FlushMfu()
+	c.FlushMFU()
 
 	// Check after.
 	stats = c.Stats()
-	if stats.MfuSize != 0 {
-		t.Errorf("Expected MFU size of 0, got %d", stats.MfuSize)
+	if stats.MFUSize != 0 {
+		t.Errorf("Expected MFU size of 0, got %d", stats.MFUSize)
 	}
 }
 
 func TestFlushAll(t *testing.T) {
 	c, _ := bicache.New(&bicache.Config{
-		MfuSize:    10,
-		MruSize:    30,
+		MFUSize:    10,
+		MRUSize:    30,
 		ShardCount: 1,
 		AutoEvict:  1000,
 	})
@@ -368,12 +368,12 @@ func TestFlushAll(t *testing.T) {
 	// Check before.
 	stats := c.Stats()
 
-	if stats.MfuSize != 3 {
-		t.Errorf("Expected MFU size of 3, got %d", stats.MfuSize)
+	if stats.MFUSize != 3 {
+		t.Errorf("Expected MFU size of 3, got %d", stats.MFUSize)
 	}
 
-	if stats.MruSize != 30 {
-		t.Errorf("Expected MFU size of 30, got %d", stats.MfuSize)
+	if stats.MRUSize != 30 {
+		t.Errorf("Expected MFU size of 30, got %d", stats.MFUSize)
 	}
 
 	c.FlushAll()
@@ -381,12 +381,12 @@ func TestFlushAll(t *testing.T) {
 	// Check after.
 	stats = c.Stats()
 
-	if stats.MfuSize != 0 {
-		t.Errorf("Expected MFU size of 0, got %d", stats.MfuSize)
+	if stats.MFUSize != 0 {
+		t.Errorf("Expected MFU size of 0, got %d", stats.MFUSize)
 	}
 
-	if stats.MruSize != 0 {
-		t.Errorf("Expected MRU size of 0, got %d", stats.MruSize)
+	if stats.MRUSize != 0 {
+		t.Errorf("Expected MRU size of 0, got %d", stats.MRUSize)
 	}
 }
 
@@ -394,8 +394,8 @@ func TestIntegrity(t *testing.T) {
 	words := []string{"&c", "'d", "'em", "'ll", "'m", "'mid", "'midst", "'mongst", "'prentice", "'re", "'s", "'sblood", "'sbodikins", "'sdeath", "'sfoot", "'sheart", "'shun", "'slid", "'slife", "'slight", "'snails", "'strewth", "'t", "'til", "'tis", "'twas", "'tween", "'twere", "'twill", "'twixt", "'twould", "'un", "'ve", "1080", "10th", "1st", "2", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th", "a", "a'", "a's", "a/c", "a1", "aa", "aaa", "aah", "aahed", "aahing", "aahs", "aal", "aalii", "aaliis", "aals", "aam", "aardvark", "aardvarks", "aardwolf", "aardwolves", "aargh", "aaron", "aaronic", "aarrgh", "aarrghh", "aas", "aasvogel", "aasvogels", "ab", "aba", "abac", "abaca", "abacas", "abacate", "abacaxi", "abacay", "abaci", "abacinate", "abacination", "abacisci", "abaciscus", "abacist", "aback", "abacli", "abacot", "abacterial", "abactinal", "abactinally", "abaction", "abactor", "abaculi", "abaculus", "abacus", "abacuses", "abada", "abaddon", "abadejo", "abadengo", "abadia", "abaff", "abaft", "abaisance", "abaised", "abaiser", "abaisse", "abaissed", "abaka", "abakas", "abalation", "abalienate", "abalienated", "abalienating", "abalienation", "abalone", "abalones", "abamp", "abampere", "abamperes", "abamps", "aband", "abandon", "abandonable", "abandoned", "abandonedly", "abandonee", "abandoner", "abandoners", "abandoning", "abandonment", "abandonments", "abandons", "abandum", "abanet", "abanga", "abannition", "abapical", "abaptiston", "abaptistum", "abarthrosis", "abarticular", "abarticulation", "abas", "abase", "abased", "abasedly", "abasedness", "abasement", "abasements", "abaser", "abasers", "abases", "abash", "abashed", "abashedly", "abashedness", "abashes", "abashing", "abashless", "abashlessly", "abashment", "abashments", "abasia", "abasias", "abasic", "abasing", "abasio", "abask", "abassi", "abastard", "abastardize", "abastral", "abatable", "abatage", "abate", "abated", "abatement", "abatements", "abater", "abaters", "abates", "abatic", "abating", "abatis", "abatised", "abatises", "abatjour", "abatjours", "abaton", "abator", "abators", "abattage", "abattis", "abattised", "abattises", "abattoir", "abattoirs", "abattu", "abattue", "abature", "abaue", "abave", "abaxial", "abaxile", "abay", "abayah", "abaze", "abb", "abba", "abbacies", "abbacomes", "abbacy", "abbandono", "abbas", "abbasi", "abbasid", "abbassi", "abbate", "abbatial", "abbatical", "abbatie", "abbaye", "abbe", "abbes", "abbess", "abbesses", "abbest", "abbevillian", "abbey", "abbey's", "abbeys", "abbeystead", "abbeystede", "abboccato", "abbogada", "abbot", "abbot's", "abbotcies", "abbotcy", "abbotnullius", "abbotric", "abbots", "abbotship", "abbotships", "abbott", "abbozzo", "abbr", "abbrev", "abbreviatable", "abbreviate", "abbreviated", "abbreviately", "abbreviates", "abbreviating", "abbreviation", "abbreviations", "abbreviator", "abbreviators", "abbreviatory", "abbreviature", "abbroachment", "abby", "abc", "abcess", "abcissa", "abcoulomb", "abd", "abdal", "abdali", "abdaria", "abdat", "abdest", "abdicable", "abdicant", "abdicate", "abdicated", "abdicates", "abdicating", "abdication", "abdications", "abdicative", "abdicator", "abditive", "abditory", "abdom", "abdomen", "abdomen's", "abdomens", "abdomina", "abdominal", "abdominales", "abdominalia", "abdominalian", "abdominally", "abdominals", "abdominoanterior", "abdominocardiac", "abdominocentesis", "abdominocystic", "abdominogenital", "abdominohysterectomy", "abdominohysterotomy", "abdominoposterior", "abdominoscope", "abdominoscopy", "abdominothoracic", "abdominous", "abdominovaginal", "abdominovesical", "abduce", "abduced", "abducens", "abducent", "abducentes", "abduces", "abducing", "abduct", "abducted", "abducting", "abduction", "abduction's", "abductions", "abductor", "abductor's", "abductores", "abductors", "abducts", "abeam", "abear", "abearance", "abecedaire", "abecedaria", "abecedarian", "abecedarians", "abecedaries", "abecedarium", "abecedarius", "abecedary", "abed", "abede", "abedge", "abegge", "abeigh", "abel", "abele", "abeles", "abelian", "abelite", "abelmosk", "abelmosks", "abelmusk", "abeltree", "abend", "abends", "abenteric", "abepithymia", "aberdavine", "aberdeen", "aberdevine", "aberduvine", "abernethy", "aberr", "aberrance", "aberrancies", "aberrancy", "aberrant", "aberrantly", "aberrants", "aberrate", "aberrated", "aberrating", "aberration", "aberrational", "aberrations", "aberrative", "aberrator", "aberrometer", "aberroscope", "aberuncate", "aberuncator", "abesse", "abessive", "abet", "abetment", "abetments", "abets", "abettal", "abettals", "abetted", "abetter", "abetters", "abetting", "abettor", "abettors", "abevacuation", "abey", "abeyance", "abeyances", "abeyancies", "abeyancy", "abeyant", "abfarad", "abfarads", "abhenries", "abhenry", "abhenrys", "abhinaya", "abhiseka", "abhominable", "abhor", "abhorred", "abhorrence", "abhorrences", "abhorrency", "abhorrent", "abhorrently", "abhorrer", "abhorrers", "abhorrible", "abhorring", "abhors", "abib", "abichite", "abidal", "abidance", "abidances", "abidden", "abide", "abided", "abider", "abiders", "abides", "abidi", "abiding", "abidingly", "abidingness", "abiegh", "abience", "abient", "abietate", "abietene", "abietic", "abietin", "abietineous", "abietinic", "abietite", "abigail", "abigails", "abigailship", "abigeat", "abigei", "abigeus", "abilao", "abilene", "abiliment", "abilitable", "abilities", "ability", "ability's", "abilla", "abilo", "abime", "abintestate", "abiogeneses", "abiogenesis", "abiogenesist", "abiogenetic", "abiogenetical", "abiogenetically", "abiogenist", "abiogenous", "abiogeny", "abiological", "abiologically", "abiology", "abioses", "abiosis", "abiotic", "abiotical", "abiotically", "abiotrophic", "abiotrophy", "abir", "abirritant", "abirritate", "abirritated", "abirritating", "abirritation", "abirritative", "abiston", "abit", "abiuret", "abject", "abjectedness", "abjection", "abjections"}
 
 	c, _ := bicache.New(&bicache.Config{
-		MfuSize:    10,
-		MruSize:    30,
+		MFUSize:    10,
+		MRUSize:    30,
 		ShardCount: 8,
 		AutoEvict:  2000,
 	})
@@ -454,8 +454,8 @@ func TestIntegrity(t *testing.T) {
 	}
 
 	c, _ = bicache.New(&bicache.Config{
-		MfuSize:    1,
-		MruSize:    30,
+		MFUSize:    1,
+		MRUSize:    30,
 		ShardCount: 1,
 		AutoEvict:  2000,
 	})
