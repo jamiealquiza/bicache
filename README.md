@@ -58,14 +58,14 @@ type KeyInfo struct {
 }
 ```
 
-### FlushMru(), FlushMfu(), FlushAll()
+### FlushMRU(), FlushMFU(), FlushAll()
 ```go
-err := c.FlushMru()
-err := c.FlushMfu()
+err := c.FlushMRU()
+err := c.FlushMFU()
 err := c.FlushAll()
 ```
 
-Flush commands flush all keys from the respective cache. `FlushAll` is faster than combining `FlushMru` and `FlushMfu`.
+Flush commands flush all keys from the respective cache. `FlushAll` is faster than combining `FlushMRU` and `FlushMFU`.
 
 ### Pause(), Resume()
 ```go
@@ -73,7 +73,14 @@ c.Pause()
 c.Resume()
 ```
 
-Pause and Resume allow auto evictions to be suspended and resumed, respectively. If eviction logging is enabled and evictions are paused, bicache will log accordingly. 
+Pause and Resume allow auto evictions to be suspended and resumed, respectively. If eviction logging is enabled and evictions are paused, bicache will log accordingly.
+
+### Close()
+```go
+c.Close()
+```
+
+Close should be called when a \*Bicache is done being used, before removing any references to it, to ensure any background tasks have returned and that it can be cleanly garbage collected.
 
 ### Stats()
 ```go
@@ -84,10 +91,10 @@ Returns a \*bicache.Stats.
 
 ```go
 type Stats struct {
-    MfuSize   uint   // Number of acive MFU keys.
-    MruSize   uint   // Number of active MRU keys.
-    MfuUsedP  uint   // MFU used in percent.
-    MruUsedP  uint   // MRU used in percent.
+    MFUSize   uint   // Number of acive MFU keys.
+    MRUSize   uint   // Number of active MRU keys.
+    MFUUsedP  uint   // MFU used in percent.
+    MRUUsedP  uint   // MRU used in percent.
     Hits      uint64 // Cache hits.
     Misses    uint64 // Cache misses.
     Evictions uint64 // Cache evictions.
@@ -102,7 +109,7 @@ j, _ := json.Marshal(stats)
 fmt.Prinln(string(j))
 ```
 ```
-{"MfuSize":0,"MruSize":3,"MfuUsedP":0,"MruUsedP":4,"Hits":3,"Misses":0,"Evictions":0,"Overflows":0}
+{"MFUSize":0,"MRUSize":3,"MFUUsedP":0,"MRUUsedP":4,"Hits":3,"Misses":0,"Evictions":0,"Overflows":0}
 ```
 
 # Design
@@ -134,7 +141,7 @@ Tested with Go 1.7+.
 
 ### Shard counts
 
-Shards must be sized in powers of 2. Shards are relatively inexpensive to manage but should not be arbitrarily high. Shard sizing should be relative to desired cache sizes and workload; more key space and greater write concurrency/rates are better suited with more shards. "Normal" sizes might be 8 shards for simple testing and 1024 shards for production workloads that experience tens of thousands (or more) of cache lookups a second. 
+Shards must be sized in powers of 2. Shards are relatively inexpensive to manage but should not be arbitrarily high. Shard sizing should be relative to desired cache sizes and workload; more key space and greater write concurrency/rates are better suited with more shards. "Normal" sizes might be 8 shards for simple testing and 1024 shards for production workloads that experience tens of thousands (or more) of cache lookups a second.
 
 ### Cache sizes
 
@@ -173,8 +180,8 @@ import (
 
 func main() {
         c, _ := bicache.New(&bicache.Config{
-                MfuSize:    24,    // MFU capacity in keys
-                MruSize:    64,    // MRU capacity in keys
+                MFUSize:    24,    // MFU capacity in keys
+                MRUSize:    64,    // MRU capacity in keys
                 ShardCount: 16,    // Shard count. Defaults to 512 if unset.
                 AutoEvict:  30000, // Run TTL evictions + MRU->MFU promotions / evictions automatically every 30s.
                 EvictLog:   true,  // Emit eviction timing logs.
@@ -208,5 +215,5 @@ john
 5535
 [109 121 32 118 97 108 117 101]
 
-{"MfuSize":0,"MruSize":3,"MfuUsedP":0,"MruUsedP":4,"Hits":3,"Misses":0,"Evictions":0,"Overflows":0}
+{"MFUSize":0,"MRUSize":3,"MFUUsedP":0,"MRUUsedP":4,"Hits":3,"Misses":0,"Evictions":0,"Overflows":0}
 ```

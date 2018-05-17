@@ -4,6 +4,7 @@ package bicache
 
 import (
 	"container/list"
+	"context"
 	"errors"
 	"log"
 	"math"
@@ -24,6 +25,7 @@ type Bicache struct {
 	ShardCount uint32
 	Size       int
 	paused     uint32
+	done       context.CancelFunc
 }
 
 // Shard implements a cache unit
@@ -61,8 +63,8 @@ type counters struct {
 // defers the operation until each Set is called
 // on the bicache.
 type Config struct {
-	MfuSize    uint
-	MruSize    uint
+	MFUSize    uint
+	MRUSize    uint
 	AutoEvict  uint
 	EvictLog   bool
 	ShardCount int
@@ -89,10 +91,10 @@ type cacheData struct {
 // Stats holds Bicache
 // statistics data.
 type Stats struct {
-	MfuSize   uint   // Number of acive MFU keys.
-	MruSize   uint   // Number of active MRU keys.
-	MfuUsedP  uint   // MFU used in percent.
-	MruUsedP  uint   // MRU used in percent.
+	MFUSize   uint   // Number of acive MFU keys.
+	MRUSize   uint   // Number of active MRU keys.
+	MFUUsedP  uint   // MFU used in percent.
+	MRUUsedP  uint   // MRU used in percent.
 	Hits      uint64 // Cache hits.
 	Misses    uint64 // Cache misses.
 	Evictions uint64 // Cache evictions.
@@ -100,14 +102,14 @@ type Stats struct {
 }
 
 // New takes a *Config and returns
-// an initialized *Shard.
+// an initialized *Bicache.
 func New(c *Config) (*Bicache, error) {
 	// Check that ShardCount is a power of 2.
 	if (c.ShardCount & (c.ShardCount - 1)) != 0 {
 		return nil, errors.New("Shard count must be a power of 2")
 	}
 
-	if c.MruSize <= 0 {
+	if c.MRUSize <= 0 {
 		return nil, errors.New("MRU size must be > 0")
 	}
 
@@ -119,15 +121,15 @@ func New(c *Config) (*Bicache, error) {
 	shards := make([]*Shard, c.ShardCount)
 
 	// Get cache sizes for each shard.
-	mfuSize := int(math.Ceil(float64(c.MfuSize) / float64(c.ShardCount)))
-	mruSize := int(math.Ceil(float64(c.MruSize) / float64(c.ShardCount)))
+	mfuSize := int(math.Ceil(float64(c.MFUSize) / float64(c.ShardCount)))
+	mruSize := int(math.Ceil(float64(c.MRUSize) / float64(c.ShardCount)))
 
 	// Init shards.
 	for i := 0; i < c.ShardCount; i++ {
 		shards[i] = &Shard{
 			cacheMap:      make(map[string]*entry, mfuSize+mruSize),
-			mfuCache:      sll.New(mfuSize),
-			mruCache:      sll.New(mruSize),
+			mfuCache:      sll.New(),
+			mruCache:      sll.New(),
 			mfuCap:        uint(mfuSize),
 			mruCap:        uint(mruSize),
 			ttlMap:        make(map[string]time.Time),
@@ -137,10 +139,13 @@ func New(c *Config) (*Bicache, error) {
 		}
 	}
 
+	ctx, cf := context.WithCancel(context.Background())
+
 	cache := &Bicache{
 		shards:     shards,
 		ShardCount: uint32(c.ShardCount),
 		Size:       (mfuSize + mruSize) * c.ShardCount,
+		done:       cf,
 	}
 
 	// Initialize a background goroutine
@@ -149,15 +154,24 @@ func New(c *Config) (*Bicache, error) {
 	if c.AutoEvict > 0 {
 		cache.autoEvict = true
 		iter := time.Duration(c.AutoEvict)
-		go bgAutoEvict(cache, iter, c)
+		go bgAutoEvict(ctx, cache, iter, c)
 	}
 
 	return cache, nil
 }
 
+// Close stops background tasks and
+// releases any resources. This should be
+// called before removing a reference to
+// a *Bicache if it's desired to be garbage
+// collected cleanly.
+func (b *Bicache) Close() {
+	b.done()
+}
+
 // bgAutoEvict calls evictTTL and promoteEvict for all shards
 // sequentially on the configured iter time interval.
-func bgAutoEvict(b *Bicache, iter time.Duration, c *Config) {
+func bgAutoEvict(ctx context.Context, b *Bicache, iter time.Duration, c *Config) {
 	ttlTachy := tachymeter.New(&tachymeter.Config{Size: c.ShardCount})
 	promoTachy := tachymeter.New(&tachymeter.Config{Size: c.ShardCount})
 	interval := time.NewTicker(time.Millisecond * iter)
@@ -168,66 +182,71 @@ func bgAutoEvict(b *Bicache, iter time.Duration, c *Config) {
 
 	var ttlStats, promoStats *tachymeter.Metrics
 
-	// On the auto eviction interval,
-	// we loop through each shard
-	// and trigger a TTL and promotion/eviction.
-	for _ = range interval.C {
-		// Skip this interval if
-		// evictions are paused.
-		if atomic.LoadUint32(&b.paused) == 1 {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-interval.C:
+			// Skip this interval if
+			// evictions are paused.
+			if atomic.LoadUint32(&b.paused) == 1 {
+				if c.EvictLog {
+					log.Printf("[Bicache] Evictions Paused")
+				}
+				continue
+			}
+
+			// On the auto eviction interval,
+			// we loop through each shard
+			// and trigger a TTL and promotion/eviction.
+			for _, s := range b.shards {
+				// Run ttl evictions.
+				start = time.Now()
+				evicted = 0
+
+				// At the very first check, nearestExpire
+				// was set to the Bicache initialization time.
+				// This is certain to run at least once.
+				// The first and real nearest expire will be set
+				// in any SetTTL call that's made.
+				if s.nearestExpire.Before(start.Add(iter)) {
+					evicted = s.evictTTL()
+				}
+
+				if c.EvictLog && evicted > 0 {
+					ttlTachy.AddTime(time.Since(start))
+				}
+
+				// Run promotions/overflow evictions.
+				start = time.Now()
+				s.promoteEvict()
+
+				if c.EvictLog {
+					promoTachy.AddTime(time.Since(start))
+				}
+			}
+
+			// Calc eviction/promo stats.
+			ttlStats = ttlTachy.Calc()
+			promoStats = promoTachy.Calc()
+
 			if c.EvictLog {
-				log.Printf("[Bicache] Evictions Paused")
+				// Log TTL stats if a
+				// TTL eviction was triggered.
+				if ttlStats.Count > 0 {
+					log.Printf("[Bicache EvictTTL] cumulative: %s | min: %s | max: %s\n",
+						ttlStats.Time.Cumulative, ttlStats.Time.Min, ttlStats.Time.Max)
+				}
+
+				// Log PromoteEvict stats.
+				log.Printf("[Bicache PromoteEvict] cumulative: %s | min: %s | max: %s\n",
+					promoStats.Time.Cumulative, promoStats.Time.Min, promoStats.Time.Max)
 			}
-			continue
+
+			// Reset tachymeter.
+			ttlTachy.Reset()
+			promoTachy.Reset()
 		}
-
-		for _, s := range b.shards {
-			// Run ttl evictions.
-			start = time.Now()
-			evicted = 0
-
-			// At the very first check, nearestExpire
-			// was set to the Bicache initialization time.
-			// This is certain to run at least once.
-			// The first and real nearest expire will be set
-			// in any SetTTL call that's made.
-			if s.nearestExpire.Before(start.Add(iter)) {
-				evicted = s.evictTTL()
-			}
-
-			if c.EvictLog && evicted > 0 {
-				ttlTachy.AddTime(time.Since(start))
-			}
-
-			// Run promotions/overflow evictions.
-			start = time.Now()
-			s.promoteEvict()
-
-			if c.EvictLog {
-				promoTachy.AddTime(time.Since(start))
-			}
-		}
-
-		// Calc eviction/promo stats.
-		ttlStats = ttlTachy.Calc()
-		promoStats = promoTachy.Calc()
-
-		if c.EvictLog {
-			// Log TTL stats if a
-			// TTL eviction was triggered.
-			if ttlStats.Count > 0 {
-				log.Printf("[Bicache EvictTTL] cumulative: %s | min: %s | max: %s\n",
-					ttlStats.Time.Cumulative, ttlStats.Time.Min, ttlStats.Time.Max)
-			}
-
-			// Log PromoteEvict stats.
-			log.Printf("[Bicache PromoteEvict] cumulative: %s | min: %s | max: %s\n",
-				promoStats.Time.Cumulative, promoStats.Time.Min, promoStats.Time.Max)
-		}
-
-		// Reset tachymeter.
-		ttlTachy.Reset()
-		promoTachy.Reset()
 	}
 }
 
@@ -239,8 +258,8 @@ func (b *Bicache) Stats() *Stats {
 
 	for _, s := range b.shards {
 		s.RLock()
-		stats.MfuSize += s.mfuCache.Len()
-		stats.MruSize += s.mruCache.Len()
+		stats.MFUSize += s.mfuCache.Len()
+		stats.MRUSize += s.mruCache.Len()
 		s.RUnlock()
 
 		mfuCap += float64(s.mfuCap)
@@ -252,12 +271,12 @@ func (b *Bicache) Stats() *Stats {
 		stats.Overflows += atomic.LoadUint64(&s.counters.overflows)
 	}
 
-	stats.MruUsedP = uint(float64(stats.MruSize) / mruCap * 100)
+	stats.MRUUsedP = uint(float64(stats.MRUSize) / mruCap * 100)
 	// Prevent incorrect stats in MRU-only mode.
 	if mfuCap > 0 {
-		stats.MfuUsedP = uint(float64(stats.MfuSize) / mfuCap * 100)
+		stats.MFUUsedP = uint(float64(stats.MFUSize) / mfuCap * 100)
 	} else {
-		stats.MfuUsedP = 0
+		stats.MFUUsedP = 0
 	}
 
 	return stats
@@ -307,21 +326,13 @@ func (s *Shard) evictTTL() int {
 			delete(s.ttlMap, k.Value.(string))
 			switch n.state {
 			case 0:
-				s.mruCache.RemoveAsync(n.node)
+				s.mruCache.Remove(n.node)
 			case 1:
-				s.mfuCache.RemoveAsync(n.node)
+				s.mfuCache.Remove(n.node)
 			}
 			evicted++
 		}
 	}
-
-	// Sync the MRU and MFU
-	// in parallel.
-	var wg sync.WaitGroup
-	wg.Add(2)
-	go bgSync(&wg, s.mruCache)
-	go bgSync(&wg, s.mfuCache)
-	wg.Wait()
 
 	// Update the nearest expire.
 	// If the last TTL'd key was just expired,
@@ -343,7 +354,7 @@ func (s *Shard) evictTTL() int {
 }
 
 // promoteEvict checks if the MRU exceeds the
-// Config.MruSize (overflow count) If so, the top <overflow count>
+// Config.MRUSize (overflow count) If so, the top <overflow count>
 // MRU scores are checked against the MFU. If any of the top MRU scores
 // are greater than the lowest MFU scores, they are promoted
 // to the MFU (if possible). Any remaining overflow count
@@ -359,12 +370,9 @@ func (s *Shard) promoteEvict() {
 	// LRU-only behavior.
 	if s.mfuCap == 0 {
 		s.Lock()
-		s.evictFromMruTail(mruOverflow)
+		s.evictFromMRUTail(mruOverflow)
 		s.Unlock()
 
-		s.RLock()
-		s.mruCache.Sync()
-		s.RUnlock()
 		return
 	}
 
@@ -419,7 +427,7 @@ func (s *Shard) promoteEvict() {
 			// Remove from the MRU and
 			// push to the MFU tail.
 			// Update cache state.
-			s.mruCache.RemoveAsync(node)
+			s.mruCache.Remove(node)
 			s.mfuCache.PushTailNode(node)
 			s.cacheMap[node.Value.(*cacheData).k].state = 1
 
@@ -430,10 +438,6 @@ func (s *Shard) promoteEvict() {
 		// all the overflow, return.
 		if promoted == mruOverflow {
 			s.Unlock()
-			// Synchronize the MRU cache.
-			s.RLock()
-			s.mruCache.Sync()
-			s.RUnlock()
 			return
 		}
 	}
@@ -453,48 +457,45 @@ promoteByScore:
 	// were promoted by score.
 	var promotedByScore int
 
-	// WaitGroup for cache bgSync().
-	var wg sync.WaitGroup
-
 	// We're here on two conditions:
 	// 1) The MFU was full. We need to handle all mruToPromoteEvict (canPromote == 0).
 	// 2) We promoted some mruToPromoteEvict and have leftovers (canPromote > 0).
 
 	// Get top MRU scores and bottom MFU scores to compare.
-	bottomMfu := s.mfuCache.LowScores(mruOverflow)
+	bottomMFU := s.mfuCache.LowScores(mruOverflow)
 
 	// If the lowest MFU score is higher than the lowest
 	// score to promote, none of these are eligible.
-	if len(bottomMfu) == 0 || bottomMfu[0].Score >= mruToPromoteEvict[remainderPosition].Score {
-		goto evictFromMruTail
+	if len(bottomMFU) == 0 || bottomMFU[0].Score >= mruToPromoteEvict[remainderPosition].Score {
+		goto evictFromMRUTail
 	}
 
 	// Otherwise, scan for a replacement.
 	s.Lock()
 scorePromote:
 	for _, mruNode := range mruToPromoteEvict[remainderPosition:] {
-		for i, mfuNode := range bottomMfu {
+		for i, mfuNode := range bottomMFU {
 			if mruNode.Score > mfuNode.Score {
 				// Push the evicted MFU node to the head
 				// of the MRU and update state.
-				s.mfuCache.RemoveAsync(mfuNode)
+				s.mfuCache.Remove(mfuNode)
 				s.mruCache.PushHeadNode(mfuNode)
 				s.cacheMap[mfuNode.Value.(*cacheData).k].state = 0
 
 				// Promote the MRU node to the MFU and
 				// update state.
-				s.mruCache.RemoveAsync(mruNode)
+				s.mruCache.Remove(mruNode)
 				s.mfuCache.PushTailNode(mruNode)
 				s.cacheMap[mruNode.Value.(*cacheData).k].state = 1
 
 				promotedByScore++
 
 				// Remove the replaced MFU node from the
-				// bottomMfu list so it's not attempted twice.
-				bottomMfu = append(bottomMfu[:i], bottomMfu[i+1:]...)
+				// bottomMFU list so it's not attempted twice.
+				bottomMFU = append(bottomMFU[:i], bottomMFU[i+1:]...)
 				break
 			}
-			if i == len(bottomMfu)-1 {
+			if i == len(bottomMFU)-1 {
 				break scorePromote
 			}
 		}
@@ -503,7 +504,7 @@ scorePromote:
 
 	s.Unlock()
 
-evictFromMruTail:
+evictFromMRUTail:
 
 	s.Lock()
 
@@ -511,31 +512,22 @@ evictFromMruTail:
 	toEvict := mruOverflow - promotedByScore
 	// Evict this many from the MRU tail.
 	if toEvict > 0 {
-		s.evictFromMruTail(toEvict)
+		s.evictFromMRUTail(toEvict)
 	}
 
 	s.Unlock()
-
-	// Sync the MRU and MFU
-	// in parallel.
-	s.RLock()
-	wg.Add(2)
-	go bgSync(&wg, s.mruCache)
-	go bgSync(&wg, s.mfuCache)
-	wg.Wait()
-	s.RUnlock()
 }
 
-// evictFromMruTail evicts n keys from the tail
+// evictFromMRUTail evicts n keys from the tail
 // of the MRU cache.
-func (s *Shard) evictFromMruTail(n int) {
+func (s *Shard) evictFromMRUTail(n int) {
 	ttlStart := len(s.ttlMap)
 
 	for i := 0; i < n; i++ {
 		node := s.mruCache.Tail()
 		delete(s.cacheMap, node.Value.(*cacheData).k)
 		delete(s.ttlMap, node.Value.(*cacheData).k)
-		s.mruCache.RemoveTailAsync()
+		s.mruCache.RemoveTail()
 	}
 
 	// Update the ttlCount.
@@ -559,17 +551,10 @@ func (s *Shard) decrementTTLCount(n uint64) {
 	if s.ttlCount-n > s.ttlCount {
 		atomic.StoreUint64(&s.ttlCount, 0)
 	} else {
-		atomic.StoreUint64(&s.ttlCount, s.ttlCount-n)
+		atomic.AddUint64(&s.ttlCount, ^uint64(n-1))
 	}
 
 	// Increment the evictions count
 	// by n, regardless.
 	atomic.AddUint64(&s.counters.evictions, n)
-}
-
-// Sll Sync handler with a WaitGroup
-// for background parallelization.
-func bgSync(wg *sync.WaitGroup, s *sll.Sll) {
-	s.Sync()
-	wg.Done()
 }

@@ -1,13 +1,15 @@
 package sll_test
 
 import (
+	"math/rand"
 	"testing"
+	// "fmt"
 
 	"github.com/jamiealquiza/bicache/sll"
 )
 
 func TestHead(t *testing.T) {
-	s := sll.New(5)
+	s := sll.New()
 
 	node := s.PushHead("value")
 	if s.Head() != node {
@@ -16,7 +18,7 @@ func TestHead(t *testing.T) {
 }
 
 func TestTail(t *testing.T) {
-	s := sll.New(5)
+	s := sll.New()
 
 	node := s.PushTail("value")
 	if s.Tail() != node {
@@ -25,7 +27,7 @@ func TestTail(t *testing.T) {
 }
 
 func TestRead(t *testing.T) {
-	s := sll.New(5)
+	s := sll.New()
 
 	s.PushHead("value")
 	if s.Head().Read() != "value" {
@@ -34,7 +36,7 @@ func TestRead(t *testing.T) {
 }
 
 func TestPushHead(t *testing.T) {
-	s := sll.New(5)
+	s := sll.New()
 
 	s.PushHead("value")
 	if s.Head().Read() != "value" {
@@ -43,7 +45,7 @@ func TestPushHead(t *testing.T) {
 }
 
 func TestPushTail(t *testing.T) {
-	s := sll.New(5)
+	s := sll.New()
 
 	s.PushTail("value")
 	if s.Tail().Read() != "value" {
@@ -52,7 +54,7 @@ func TestPushTail(t *testing.T) {
 }
 
 func TestNext(t *testing.T) {
-	s := sll.New(5)
+	s := sll.New()
 
 	firstVal := "first"
 	secondVal := "second"
@@ -66,7 +68,7 @@ func TestNext(t *testing.T) {
 }
 
 func TestPrev(t *testing.T) {
-	s := sll.New(5)
+	s := sll.New()
 
 	firstVal := "first"
 	secondVal := "second"
@@ -80,7 +82,7 @@ func TestPrev(t *testing.T) {
 }
 
 func TestLen(t *testing.T) {
-	s := sll.New(10)
+	s := sll.New()
 
 	for i := 0; i < 5; i++ {
 		s.PushTail(i)
@@ -92,7 +94,7 @@ func TestLen(t *testing.T) {
 }
 
 func TestHighScores(t *testing.T) {
-	s := sll.New(10)
+	s := sll.New()
 
 	nodes := map[int]*sll.Node{}
 
@@ -107,9 +109,20 @@ func TestHighScores(t *testing.T) {
 	nodes[4].Read()
 	nodes[4].Read()
 
-	// Should result in [2, 4, 3, 1, 5] with read scores
-	// 3, 2, 0, 0, 0 respectively.
+	// Should result in [0,4,3] with read scores
+	// 0,2,3 respectively.
+
 	scores := s.HighScores(3)
+
+	// for node := range nodes {
+	// 	fmt.Printf("node %d: %d\n", node, nodes[node].Score)
+	// }
+	//
+	// fmt.Println("-")
+	//
+	// for _, node := range scores {
+	// 	fmt.Printf("node %d: %d\n", node.Value, node.Score)
+	// }
 
 	if scores[0] != nodes[2] {
 		t.Errorf("Expected scores position 0 node with value 2, got %d", scores[0].Read())
@@ -125,7 +138,7 @@ func TestHighScores(t *testing.T) {
 }
 
 func TestLowScores(t *testing.T) {
-	s := sll.New(3)
+	s := sll.New()
 
 	nodes := map[int]*sll.Node{}
 
@@ -144,6 +157,18 @@ func TestLowScores(t *testing.T) {
 	// with read scores of 0, 2, 3 respectively.
 	scores := s.LowScores(3)
 
+	/*
+		for node := range nodes {
+			fmt.Printf("node %d: %d\n", node, nodes[node].Score)
+		}
+
+		fmt.Println("-")
+
+		for _, node := range scores {
+			fmt.Printf("node %d: %d\n", node.Value, node.Score)
+		}
+	*/
+
 	if scores[0] != nodes[2] {
 		t.Errorf("Expected scores position 0 node with value 2, got %d", scores[2].Read())
 	}
@@ -157,8 +182,65 @@ func TestLowScores(t *testing.T) {
 	}
 }
 
+func benchmarkHeapScores(b *testing.B, l int) {
+	b.N = 1
+	b.StopTimer()
+
+	// Create/populate an sll.
+	s := sll.New()
+	for i := 0; i < l; i++ {
+		s.PushTail(i)
+	}
+
+	// Perform 3*sll.Len() reads
+	// on random nodes to produce
+	// random node score counts.
+	node := s.Tail()
+	for i := 0; i < 3*l; i++ {
+		node.Read()
+		for j := 0; j < rand.Intn(10); j++ {
+			node = node.Next()
+			if node == nil {
+				node = s.Tail()
+			}
+		}
+	}
+
+	b.ResetTimer()
+	b.StartTimer()
+
+	for n := 0; n < b.N; n++ {
+		// Call HighScores for
+		// 1/20th the sll len.
+		s.HighScores(l / 20)
+	}
+}
+
+func BenchmarkHeapScores200K(b *testing.B) { benchmarkHeapScores(b, 200000) }
+func BenchmarkHeapScores2M(b *testing.B)   { benchmarkHeapScores(b, 2000000) }
+
+func TestScoresEmpty(t *testing.T) {
+	s := sll.New()
+
+	hScores := s.HighScores(5)
+	lScores := s.LowScores(5)
+
+	// We don't really care about the
+	// len; if it's really broken,
+	// we'd probably have crashed
+	// by now.
+
+	if len(hScores) != 0 {
+		t.Errorf("Expected scores len of 0, got %d", len(hScores))
+	}
+
+	if len(lScores) != 0 {
+		t.Errorf("Expected scores len of 0, got %d", len(lScores))
+	}
+}
+
 func TestMoveToHead(t *testing.T) {
-	s := sll.New(10)
+	s := sll.New()
 
 	for i := 0; i < 10; i++ {
 		s.PushTail(i)
@@ -185,7 +267,7 @@ func TestMoveToHead(t *testing.T) {
 }
 
 func TestMoveToTail(t *testing.T) {
-	s := sll.New(10)
+	s := sll.New()
 
 	for i := 0; i < 10; i++ {
 		s.PushTail(i)
@@ -212,8 +294,8 @@ func TestMoveToTail(t *testing.T) {
 }
 
 func TestPushHeadNode(t *testing.T) {
-	s1 := sll.New(3)
-	s2 := sll.New(3)
+	s1 := sll.New()
+	s2 := sll.New()
 
 	s1.PushTail("target")
 	node := s1.Tail()
@@ -235,8 +317,8 @@ func TestPushHeadNode(t *testing.T) {
 }
 
 func TestPushTailNode(t *testing.T) {
-	s1 := sll.New(3)
-	s2 := sll.New(3)
+	s1 := sll.New()
+	s2 := sll.New()
 
 	s1.PushTail("target")
 	node := s1.Tail()
@@ -258,7 +340,7 @@ func TestPushTailNode(t *testing.T) {
 }
 
 func TestRemove(t *testing.T) {
-	s := sll.New(3)
+	s := sll.New()
 
 	nodes := map[int]*sll.Node{}
 
@@ -289,68 +371,8 @@ func TestRemove(t *testing.T) {
 	}
 }
 
-func TestSync(t *testing.T) {
-	s := sll.New(3)
-
-	first := s.PushTail("value")
-	second := s.PushTail("value")
-	s.PushTail("value")
-
-	s.RemoveAsync(second)
-
-	if s.Len() != 3 {
-		t.Errorf("Expected len 3, got %d", s.Len())
-	}
-
-	if s.Tail().Next() != first {
-		t.Error("Unexpected list order")
-	}
-
-	s.Sync()
-
-	if s.Len() != 2 {
-		t.Errorf("Expected len 2, got %d", s.Len())
-	}
-}
-
-func TestRemoveAsync(t *testing.T) {
-	s := sll.New(3)
-
-	nodes := map[int]*sll.Node{}
-
-	for i := 0; i < 3; i++ {
-		nodes[i] = s.PushTail(i)
-	}
-
-	s.RemoveAsync(nodes[1])
-
-	if s.Tail().Next().Read() != 0 {
-		t.Errorf(`Expected node with value "0", got "%d"`, s.Tail().Next().Read())
-	}
-
-	if s.Len() != 3 {
-		t.Errorf("Expected len 3, got %d", s.Len())
-	}
-
-	s.Sync()
-
-	scores := s.HighScores(3)
-
-	if s.Len() != 2 {
-		t.Errorf("Expected len 2, got %d", s.Len())
-	}
-
-	if scores[0] != s.Tail() {
-		t.Error("Unexpected node in scores position 0")
-	}
-
-	if scores[1] != s.Tail().Next() {
-		t.Error("Unexpected node in scores position 1")
-	}
-}
-
 func TestRemoveHead(t *testing.T) {
-	s := sll.New(3)
+	s := sll.New()
 
 	s.PushTail("value")
 	target := s.PushTail("value")
@@ -364,7 +386,7 @@ func TestRemoveHead(t *testing.T) {
 }
 
 func TestRemoveTail(t *testing.T) {
-	s := sll.New(3)
+	s := sll.New()
 
 	s.PushTail("value")
 	target := s.PushTail("value")
@@ -374,53 +396,5 @@ func TestRemoveTail(t *testing.T) {
 
 	if s.Tail() != target {
 		t.Error("Unexpected tail node")
-	}
-}
-
-func TestRemoveHeadAsync(t *testing.T) {
-	s := sll.New(3)
-
-	s.PushTail("value")
-	target := s.PushTail("value")
-	s.PushTail("value")
-
-	s.RemoveHeadAsync()
-
-	if s.Head() != target {
-		t.Error("Unexpected head node")
-	}
-
-	if s.Len() != 3 {
-		t.Errorf("Expected len 3, got %d", s.Len())
-	}
-
-	s.Sync()
-
-	if s.Len() != 2 {
-		t.Errorf("Expected len 2, got %d", s.Len())
-	}
-}
-
-func TestRemoveTailAsync(t *testing.T) {
-	s := sll.New(3)
-
-	s.PushTail("value")
-	target := s.PushTail("value")
-	s.PushTail("value")
-
-	s.RemoveTailAsync()
-
-	if s.Tail() != target {
-		t.Error("Unexpected tail node")
-	}
-
-	if s.Len() != 3 {
-		t.Errorf("Expected len 3, got %d", s.Len())
-	}
-
-	s.Sync()
-
-	if s.Len() != 2 {
-		t.Errorf("Expected len 2, got %d", s.Len())
 	}
 }

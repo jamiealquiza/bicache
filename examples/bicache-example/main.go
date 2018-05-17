@@ -12,8 +12,8 @@ import (
 
 func main() {
 	c, _ := bicache.New(&bicache.Config{
-		MfuSize:    50000,
-		MruSize:    50000,
+		MFUSize:    50000,
+		MRUSize:    50000,
 		AutoEvict:  1000,
 		ShardCount: 512,
 	})

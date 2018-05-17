@@ -24,8 +24,8 @@ func main() {
 	flag.Parse()
 
 	c, _ := bicache.New(&bicache.Config{
-		MfuSize:    uint(*mfu),
-		MruSize:    uint(*mru),
+		MFUSize:    uint(*mfu),
+		MRUSize:    uint(*mru),
 		AutoEvict:  uint(*evict * 1000),
 		EvictLog:   true,
 		ShardCount: 1024,
@@ -42,7 +42,7 @@ func main() {
 
 	ticker := time.NewTicker(10 * time.Second)
 
-	for _ = range ticker.C {
+	for range ticker.C {
 		fmt.Printf("\n> Writes:\n")
 		writeT.Calc().Dump()
 

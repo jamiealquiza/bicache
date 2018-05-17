@@ -28,7 +28,7 @@ import (
 )
 
 func main() {
-	s := sll.New(10)
+	s := sll.New()
 
 	objects := []string{
 		"one",
