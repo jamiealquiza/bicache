@@ -1,11 +1,13 @@
 [![GoDoc](https://godoc.org/github.com/jamiealquiza/bicache?status.svg)](https://godoc.org/github.com/jamiealquiza/bicache)
 
 # bicache
-Bicache is a hybrid MFU/MRU, TTL-optional, general embedded key cache for Go. Why should you be interested? Pure MRU caches are great because they're fast, simple and safe. Items that are used often generally remain in the cache. A downside is that large, sequential scan where the number of misses exceeds the MRU cache size causes _highly used_ (and perhaps the most useful) data to be evicted in favor of _recent_ data. A MFU cache makes the distinction of item value vs recency based on a history of read counts. This means that valuable keys are insulated from large scans of potentially less valuable data.
+Bicache is a sharded hybrid MFU/MRU, TTL optional, general purpose cache for Go.
 
-Bicache's two tiers of cache are individually size configurable (in key count, eventually data size). A shared lookup table is used, limited read ops to a max of one cache miss over two tiers of cache. Bicache handles MRU to MFU promotions and overflow evictions at write time or on automatic interval as a background task.
+Pure MRU (LRU eviction) caches are great because they're fast and incredibly simple; items that are used often generally remain in the cache. One downside is that large, sequential scan where the number of misses exceeds the MRU cache size causes _highly used_ (and perhaps the most useful) data to be evicted in favor of _recent_ data. A MFU cache makes the distinction of item value based on access frequency rather than recency. This means that valuable keys are insulated from large scans of potentially less valuable data.
 
-Bicached is built for highly concurrent, read optimized workloads. It averages roughly single-digit microsecond Sets and 500 nanosecond Gets at 100,000 keys on modern hardware (assuming a promotion/eviction is not running; the impact can vary greatly depending on configuration). This translates to millions of get/set operations per second from a single thread. Additionally, a target of roughly 10us p999 get operations is intended with concurrent reads and writes while sustaining evictions. More formal performance criteria will be established and documented.
+Bicache's two tiers of cache are individually size configurable (in key count, eventually data size). A global lookup table is used to limit read ops to a max of one cache miss, even with two tiers of sharded cache levels. Bicache handles MRU to MFU promotions and overflow evictions at write time or on automatic interval as a background task.
+
+Bicached is built for highly concurrent, read optimized workloads. It averages roughly single-digit microsecond Sets and 500 nanosecond Gets at 100,000 keys on modern hardware (assuming a promotion/eviction is not running; the impact can vary greatly depending on configuration). This allows millions of get/set operations per second from a single thread.
 
 # API
 
@@ -20,12 +22,12 @@ ok := c.Set("key", "value")
 
 Sets `key` to `value` (if exists, updates). Set can be used to update an existing TTL'd key without affecting the TTL. A status bool is returned to signal whether or not the set was successful. A `false` is returned when Bicache is configured with `NoOverflow` enabled and the cache is full.
 
-### SetTTL(key, value, \<ttl seconds\>)
+### SetTTL(key, value, seconds)
 ```go
 ok := c.SetTTL("key", "value", 3600)
 ```
 
-Sets `key` to `value` (if exists, updates) with a `ttl` expiration (in seconds). SetTTL can be used to add a TTL to an existing non-TTL'd key, or, updating an existing TTL. A status bool is returned to signal whether or not the set was successful. A `false` is returned when Bicache is configured with `NoOverflow` enabled and the cache is full.
+Sets `key` to `value` (if exists, updates) with a TTL expiration (in seconds). SetTTL can be used to add a TTL to an existing non-TTL'd key, or, updating an existing TTL. A status bool is returned to signal whether or not the set was successful. A `false` is returned when Bicache is configured with `NoOverflow` enabled and the cache is full.
 
 ### Get(key)
 ```go
@@ -114,9 +116,9 @@ fmt.Prinln(string(j))
 
 # Design
 
-In a pure MRU cache, both fetching and setting a key moves it to the front of the list. When the list is full, keys are evicted from the tail when space for a new key is needed. An item that is hit often remains in the cache by probability that it was accessed recently.
+In a pure MRU cache, both fetching and setting a key moves it to the front of the list. When the list is full, keys are evicted from the tail when space for a new key is needed. An item that is hit often remains in the cache according to the probability that it was accessed recently.
 
-Commonly, a cache miss works as follows: `cache get` -> `miss` -> `backend lookup` -> `cache results`. If a piece of software were to traverse a large list of user IDs stored in a backend database, it's possible that the cache capacity will be much smaller than the number of user IDs available in the database. This will result in the entire MRU being flushed and replaced.
+A common cache miss/set flow is as follows: `cache get` -> `miss` -> `backend lookup` -> `cache results`. If an application were to to perform this procedure over a large set of items, it's possible that the entire MRU is flushed and replaced.
 
 Bicache isolates MRU scan thrashing by promoting the most used keys to an MFU cache when the MRU cache is full. MRU to MFU promotions are intelligent; rather than attempting to promote MRU tail items, Bicache asynchronously gathers the highest score MRU keys and promotes those that have scores exceeding keys in the MFU. Any remainder key count that must be evicted relegates to MFU to MRU demotion followed by MRU tail eviction.
 
@@ -129,7 +131,7 @@ Internally, bicache shards the two cache tiers into many sub-caches (sized throu
 ![img_0849](https://user-images.githubusercontent.com/4108044/27234682-1dfcac78-527b-11e7-9d4f-5908ab1cbfef.PNG)
 > *color key denotes shard lock exclusivity; blue represents a read lock, orange is a full rw lock*
 
-Get, Set and Delete requests are routed to the appropriate cache shard using a hash-routing scheme on the key name. Bicache's internal accounting, cache promotion, evictions and usage stats are all isolated per shard. Promotions and evictions are handled sequentially across shards in a dedicated background task at the configured `AutoEvict` interval (promotion/eviction timings are emitted if configured; these metrics represet the most performance influencing aspect of bicache). When calling the `Stat()` method on bicache, shard statistics (hits, misses, usage) are aggregated and returned.
+Get, Set and Delete requests are routed to the appropriate cache shard with a hash-routing on the key name. Bicache's internal accounting, cache promotion, evictions and usage stats are all isolated per shard. Promotions and evictions are handled sequentially across shards in a dedicated background task at the configured `AutoEvict` interval (promotion/eviction timings are emitted if configured; these metrics represet the most performance influencing aspect of bicache). When calling the `Stat()` method on bicache, shard statistics (hits, misses, usage) are aggregated and returned.
 
 # Installation
 Tested with Go 1.7+.
@@ -147,7 +149,7 @@ Shards must be sized in powers of 2. Shards are relatively inexpensive to manage
 
 Bicache can be configured with arbitrary sizes for each cache, allowing a ratio of MFU to MRU for different usage patterns. While the example shows very low cache sizes, this is purely to demonstrate functionality when the MRU is overflowed. A real world configuration might be a 10,000 key MFU and 30,000 key MRU capacity.
 
-The `Config.NoOverflow` setting specifies whether or not `Set` and `SetTTL` methods are allowed to add additional keys when the cache is full. If No Overflow is enabled, a set will return `false` if the cache is full. Allowing overflow will allow caches to run over 100% utilization until a promovtion/eviction cycle is performed to evict overflow keys. No Overflow may be interesting for strict cache size controls with extremely high set volumes, where the caches could reach several times their capacity between eviction cycles.
+The `Config.NoOverflow` setting specifies whether or not `Set` and `SetTTL` methods are allowed to add additional keys when the cache is full. If NoOverflow is enabled, a set will return `false` if the cache is full. Allowing overflow will allow caches to run over 100% utilization until a promovtion/eviction cycle is performed to evict overflow keys. No Overflow may be interesting for strict cache size controls with extremely high set volumes, where the caches could reach several times their capacity between eviction cycles.
 
 The MFU can also be set to 0, causing Bicache to behave like a typical MRU/LRU cache.
 
