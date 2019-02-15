@@ -7,7 +7,7 @@ Pure MRU (LRU eviction) caches are great because they're fast and incredibly sim
 
 Bicache's two tiers of cache are individually size configurable (in key count, eventually data size). A global lookup table is used to limit read ops to a max of one cache miss, even with two tiers of sharded cache levels. Bicache handles MRU to MFU promotions and overflow evictions at write time or on automatic interval as a background task.
 
-Bicached is built for highly concurrent, read optimized workloads. It averages roughly single-digit microsecond Sets and 500 nanosecond Gets at 100,000 keys on modern hardware (assuming a promotion/eviction is not running; the impact can vary greatly depending on configuration). This allows millions of get/set operations per second from a single thread.
+Bicached is built for highly concurrent, read heavy workloads.
 
 # API
 
