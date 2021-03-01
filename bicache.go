@@ -91,14 +91,16 @@ type cacheData struct {
 // Stats holds Bicache
 // statistics data.
 type Stats struct {
-	MFUSize   uint   // Number of acive MFU keys.
-	MRUSize   uint   // Number of active MRU keys.
-	MFUUsedP  uint   // MFU used in percent.
-	MRUUsedP  uint   // MRU used in percent.
-	Hits      uint64 // Cache hits.
-	Misses    uint64 // Cache misses.
-	Evictions uint64 // Cache evictions.
-	Overflows uint64 // Failed sets on full caches.
+	MFUSize    uint   // Number of active MFU keys.
+	MRUSize    uint   // Number of active MRU keys.
+	MFUUsedP   uint   // MFU used in percent.
+	MRUUsedP   uint   // MRU used in percent.
+	MFUMaxSize uint   // Maximum number of MFU keys.
+	MRUMaxSize uint   // Maximum number of MRU keys.
+	Hits       uint64 // Cache hits.
+	Misses     uint64 // Cache misses.
+	Evictions  uint64 // Cache evictions.
+	Overflows  uint64 // Failed sets on full caches.
 }
 
 // New takes a *Config and returns
@@ -270,6 +272,9 @@ func (b *Bicache) Stats() *Stats {
 		stats.Evictions += atomic.LoadUint64(&s.counters.evictions)
 		stats.Overflows += atomic.LoadUint64(&s.counters.overflows)
 	}
+
+	stats.MFUMaxSize = uint(mfuCap)
+	stats.MRUMaxSize = uint(mruCap)
 
 	stats.MRUUsedP = uint(float64(stats.MRUSize) / mruCap * 100)
 	// Prevent incorrect stats in MRU-only mode.
