@@ -5,7 +5,7 @@ import (
 	"testing"
 	// "fmt"
 
-	"github.com/jamiealquiza/bicache/sll"
+	"github.com/jamiealquiza/bicache/v2/sll"
 )
 
 func TestHead(t *testing.T) {
