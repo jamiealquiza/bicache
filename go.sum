@@ -1,0 +1,4 @@
+github.com/jamiealquiza/fnv v1.0.0 h1:4NwlkaoZiLhqk008EY5+MTGVPRQZgRG/6B7+jN7ueT8=
+github.com/jamiealquiza/fnv v1.0.0/go.mod h1:iJRnFlvFvZpWKZd+KljYXcyQLasMIKAVuQhx63P4DUk=
+github.com/jamiealquiza/tachymeter v2.0.0+incompatible h1:mGiF1DGo8l6vnGT8FXNNcIXht/YmjzfraiUprXYwJ6g=
+github.com/jamiealquiza/tachymeter v2.0.0+incompatible/go.mod h1:Ayf6zPZKEnLsc3winWEXJRkTBhdHo58HODAu1oFJkYU=

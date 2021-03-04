@@ -40,6 +40,48 @@ func TestStats(t *testing.T) {
 		AutoEvict:  3000,
 	})
 
+	stats := c.Stats()
+
+	if stats.MFUSize != 0 {
+		t.Errorf("Expected MFU size 0, got %d", stats.MFUSize)
+	}
+
+	if stats.MRUSize != 0 {
+		t.Errorf("Expected MRU size 0, got %d", stats.MRUSize)
+	}
+
+	if stats.MFUMaxSize != 10 {
+		t.Errorf("Expected MFUMaxSize 10, got %d", stats.MFUSize)
+	}
+
+	if stats.MRUMaxSize != 30 {
+		t.Errorf("Expected MRUMaxSize 30, got %d", stats.MRUSize)
+	}
+
+	if stats.MFUUsedP != 0 {
+		t.Errorf("Expected MFU usedp 0, got %d", stats.MFUUsedP)
+	}
+
+	if stats.MRUUsedP != 0 {
+		t.Errorf("Expected MRU usedp 0, got %d", stats.MRUUsedP)
+	}
+
+	if stats.Hits != 0 {
+		t.Errorf("Expected 0 hits, got %d", stats.Hits)
+	}
+
+	if stats.Misses != 0 {
+		t.Errorf("Expected 0 misses, got %d", stats.Misses)
+	}
+
+	if stats.Evictions != 0 {
+		t.Errorf("Expected 0 evictions, got %d", stats.Evictions)
+	}
+
+	if stats.Overflows != 0 {
+		t.Errorf("Expected 0 overflows, got %d", stats.Overflows)
+	}
+
 	for i := 0; i < 50; i++ {
 		c.Set(strconv.Itoa(i), "value")
 		c.Get(strconv.Itoa(i))
@@ -51,7 +93,7 @@ func TestStats(t *testing.T) {
 	log.Printf("Sleeping for 4 seconds to allow evictions")
 	time.Sleep(4 * time.Second)
 
-	stats := c.Stats()
+	stats = c.Stats()
 
 	if stats.MFUSize != 10 {
 		t.Errorf("Expected MFU size 10, got %d", stats.MFUSize)
@@ -59,6 +101,14 @@ func TestStats(t *testing.T) {
 
 	if stats.MRUSize != 30 {
 		t.Errorf("Expected MRU size 30, got %d", stats.MRUSize)
+	}
+
+	if stats.MFUMaxSize != 10 {
+		t.Errorf("Expected MFUMaxSize 10, got %d", stats.MFUSize)
+	}
+
+	if stats.MRUMaxSize != 30 {
+		t.Errorf("Expected MRUMaxSize 30, got %d", stats.MRUSize)
 	}
 
 	if stats.MFUUsedP != 100 {
