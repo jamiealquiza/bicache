@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/jamiealquiza/bicache"
+	"github.com/jamiealquiza/bicache/v2"
 	"github.com/jamiealquiza/tachymeter"
 )
 

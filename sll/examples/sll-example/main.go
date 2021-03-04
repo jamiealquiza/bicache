@@ -24,7 +24,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/jamiealquiza/bicache/sll"
+	"github.com/jamiealquiza/bicache/v2/sll"
 )
 
 func main() {

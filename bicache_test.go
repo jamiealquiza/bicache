@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jamiealquiza/bicache"
+	"github.com/jamiealquiza/bicache/v2"
 )
 
 func TestNew(t *testing.T) {
