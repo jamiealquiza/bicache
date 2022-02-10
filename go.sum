@@ -1,6 +1,3 @@
-github.com/jamiealquiza/bicache v1.0.0 h1:WsiPPV5oWP/cYKBFaLkdpMt2Ft/M/Q2kntUGlzM2b1Q=
-github.com/jamiealquiza/bicache v2.0.0+incompatible h1:0V+RlPLr4g9PkC2CZdZg/6NlN6bgdhlqdEsP1Fm6Q8U=
-github.com/jamiealquiza/bicache v2.0.0+incompatible/go.mod h1:xSPiksbz+HyGfZ+2f5KngWsTJex9wUilkK4sIdXDgUM=
 github.com/jamiealquiza/fnv v1.0.0 h1:4NwlkaoZiLhqk008EY5+MTGVPRQZgRG/6B7+jN7ueT8=
 github.com/jamiealquiza/fnv v1.0.0/go.mod h1:iJRnFlvFvZpWKZd+KljYXcyQLasMIKAVuQhx63P4DUk=
 github.com/jamiealquiza/tachymeter v2.0.0+incompatible h1:mGiF1DGo8l6vnGT8FXNNcIXht/YmjzfraiUprXYwJ6g=
