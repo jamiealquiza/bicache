@@ -296,6 +296,14 @@ func (b *Bicache) Resume() error {
 	return nil
 }
 
+// RemoveLeastRecentlyUsed remove the last element from
+// the MRU cache in each shard.
+func (b *Bicache) RemoveLeastRecentlyUsed() {
+	for _, s := range b.shards {
+		s.evictFromMRUTail(1)
+	}
+}
+
 // getShard returns the shard index
 // using fnv-1 32 bit based hash-routing
 // (we can mask for a modulo since ShardCount

@@ -110,7 +110,7 @@ func (ll *Sll) Copy() *Sll {
 }
 
 // HighScores takes an integer and returns the
-// respective number of *Nodes with the higest scores
+// respective number of *Nodes with the highest scores
 // sorted in ascending order.
 func (ll *Sll) HighScores(k int) NodeScoreList {
 	h := &MinHeap{}
