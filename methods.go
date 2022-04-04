@@ -300,7 +300,9 @@ func (b *Bicache) Resume() error {
 // the MRU cache in each shard.
 func (b *Bicache) RemoveLeastRecentlyUsed() {
 	for _, s := range b.shards {
+		s.Lock()
 		s.evictFromMRUTail(1)
+		s.Unlock()
 	}
 }
 
