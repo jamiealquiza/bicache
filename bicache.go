@@ -69,6 +69,7 @@ type Config struct {
 	EvictLog   bool
 	ShardCount int
 	NoOverflow bool
+	Context    context.Context
 }
 
 // Entry is a container type for scored
@@ -141,7 +142,10 @@ func New(c *Config) (*Bicache, error) {
 		}
 	}
 
-	ctx, cf := context.WithCancel(context.Background())
+	if c.Context == nil {
+		c.Context = context.Background()
+	}
+	ctx, cf := context.WithCancel(c.Context)
 
 	cache := &Bicache{
 		shards:     shards,
