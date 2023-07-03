@@ -44,10 +44,10 @@ func main() {
 
 	for range ticker.C {
 		fmt.Printf("\n> Writes:\n")
-		writeT.Calc().Dump()
+		fmt.Println(writeT.Calc())
 
 		fmt.Printf("\n> Reads:\n")
-		readT.Calc().Dump()
+		fmt.Println(writeT.Calc())
 
 		stats := c.Stats()
 		j, _ := json.Marshal(stats)

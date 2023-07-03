@@ -34,7 +34,7 @@ func main() {
 		c.Set(key, []byte{0})
 		t.AddTime(time.Since(start))
 	}
-	t.Calc().Dump()
+	fmt.Println(t.Calc())
 
 	fmt.Println()
 
@@ -47,7 +47,7 @@ func main() {
 		t.AddTime(time.Since(start))
 	}
 
-	t.Calc().Dump()
+	fmt.Println(t.Calc())
 
 	stats := c.Stats()
 	j, _ := json.Marshal(stats)
