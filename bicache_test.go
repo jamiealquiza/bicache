@@ -1,6 +1,8 @@
 package bicache_test
 
 import (
+	"context"
+	"fmt"
 	"log"
 	"strconv"
 	"testing"
@@ -220,5 +222,45 @@ func TestPromoteEvict(t *testing.T) {
 		if v := c.Get(strconv.Itoa(k)); v == nil {
 			t.Errorf("Unexpected miss for key %d", k)
 		}
+	}
+}
+
+func TestCanceledContext(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	c, _ := bicache.New(&bicache.Config{
+		MRUSize:    30,
+		ShardCount: 2,
+		AutoEvict:  1000,
+		Context:    ctx,
+	})
+
+	for i := 0; i < 40; i++ {
+		c.Set(fmt.Sprintf("initial-%d", i), "value")
+	}
+
+	log.Printf("Sleeping for 2 seconds to allow evictions")
+	time.Sleep(2 * time.Second)
+
+	stats := c.Stats()
+
+	// Check that auto evict is maintaining capacity
+	if stats.MRUSize != 30 {
+		t.Error("Unexpected initial MRU count")
+	}
+
+	// Cancel context to close auto evict
+	cancel()
+
+	for i := 0; i < 40; i++ {
+		c.Set(fmt.Sprintf("after-cancel-%d", i), "value")
+	}
+	log.Printf("Sleeping for 2 seconds to allow evictions")
+	time.Sleep(2 * time.Second)
+
+	stats = c.Stats()
+
+	// Check that auto evict is not active and not maintaining capacity
+	if stats.MRUSize != 70 {
+		t.Error("Unexpected MRU count after cancel")
 	}
 }
