@@ -159,7 +159,7 @@ func New(c *Config) (*Bicache, error) {
 	// if configured.
 	if c.AutoEvict > 0 {
 		cache.autoEvict = true
-		iter := time.Duration(c.AutoEvict)
+		iter := time.Duration(c.AutoEvict) * time.Millisecond
 		go bgAutoEvict(ctx, cache, iter, c)
 	}
 
