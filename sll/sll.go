@@ -84,7 +84,7 @@ func (nsl NodeScoreList) Swap(i, j int) {
 
 // Len returns the count of nodes in the *Sll.
 func (ll *Sll) Len() uint {
-	return uint(ll.len)
+	return uint(atomic.LoadUint64(&ll.len))
 }
 
 // Head returns the head *Node.
