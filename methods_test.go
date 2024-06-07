@@ -1,8 +1,11 @@
 package bicache_test
 
 import (
+	"fmt"
 	"log"
+	"math/rand"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -519,4 +522,34 @@ func TestIntegrity(t *testing.T) {
 	if c.Get("replacement") != "replacement" || c.Get("promoted") != "promoted" {
 		t.Errorf("Unexpected cache miss")
 	}
+}
+
+func TestConcurrentReadsAndWrites(t *testing.T) {
+	c, _ := bicache.New(&bicache.Config{
+		MFUSize:    10,
+		MRUSize:    30,
+		ShardCount: 2,
+		AutoEvict:  1000,
+	})
+
+	const numTasks = 10000
+	wg := &sync.WaitGroup{}
+	wg.Add(numTasks * 2)
+
+	for i := 0; i < numTasks; i++ {
+		go func() {
+			defer wg.Done()
+			v := fmt.Sprint(rand.Int())
+			ok := c.SetTTL("key", v, 3)
+			if !ok {
+				t.Error("Set failed")
+			}
+		}()
+
+		go func() {
+			defer wg.Done()
+			c.Get("key")
+		}()
+	}
+	wg.Wait()
 }
