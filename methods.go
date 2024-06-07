@@ -151,11 +151,12 @@ func (b *Bicache) Get(k string) interface{} {
 
 	if n, exists := s.cacheMap[k]; exists {
 		read := n.node.Read()
+		val := read.(*cacheData).v
 
 		s.RUnlock()
 		atomic.AddUint64(&s.counters.hits, 1)
 
-		return read.(*cacheData).v
+		return val
 	}
 
 	s.RUnlock()
