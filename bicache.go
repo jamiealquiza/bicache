@@ -159,7 +159,7 @@ func New(c *Config) (*Bicache, error) {
 	// if configured.
 	if c.AutoEvict > 0 {
 		cache.autoEvict = true
-		iter := time.Duration(c.AutoEvict)
+		iter := time.Duration(c.AutoEvict) * time.Millisecond
 		go bgAutoEvict(ctx, cache, iter, c)
 	}
 
@@ -180,7 +180,7 @@ func (b *Bicache) Close() {
 func bgAutoEvict(ctx context.Context, b *Bicache, iter time.Duration, c *Config) {
 	ttlTachy := tachymeter.New(&tachymeter.Config{Size: c.ShardCount})
 	promoTachy := tachymeter.New(&tachymeter.Config{Size: c.ShardCount})
-	interval := time.NewTicker(time.Millisecond * iter)
+	interval := time.NewTicker(iter)
 	var evicted int
 	var start time.Time
 
