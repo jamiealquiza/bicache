@@ -2,8 +2,8 @@ package sll_test
 
 import (
 	"math/rand"
+	"sync"
 	"testing"
-	// "fmt"
 
 	"github.com/jamiealquiza/bicache/v2/sll"
 )
@@ -396,5 +396,39 @@ func TestRemoveTail(t *testing.T) {
 
 	if s.Tail() != target {
 		t.Error("Unexpected tail node")
+	}
+}
+
+func TestRace(t *testing.T) {
+	// Verifies the operations are thread-safe. Run with go test -race.
+	s := sll.New()
+
+	const numOperations = 10000
+	// start a writer and a reader
+	wg := &sync.WaitGroup{}
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		for i := 0; i < numOperations; i++ {
+			s.PushHead(i)
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+
+		var lastLen uint = 0
+		for i := 0; i < numOperations; i++ {
+			len := s.Len()
+			if len < lastLen {
+				t.Fatalf("len went backwards; should be impossible lastLen=%d len=%d", lastLen, len)
+			}
+			lastLen = len
+		}
+	}()
+	wg.Wait()
+
+	if s.Len() != numOperations {
+		t.Errorf("Expected len %d, got %d", numOperations, s.Len())
 	}
 }
