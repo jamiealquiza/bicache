@@ -3,7 +3,6 @@
 package bicache
 
 import (
-	"container/list"
 	"context"
 	"errors"
 	"log"
@@ -16,6 +15,11 @@ import (
 	"github.com/jamiealquiza/bicache/v2/sll"
 	"github.com/jamiealquiza/tachymeter"
 )
+
+// nearestExpireSentinel is a far-future offset used as the
+// nearest expire when no TTL'd keys are present; it defers
+// TTL eviction scans until a SetTTL sets a real timestamp.
+const nearestExpireSentinel = time.Duration(math.MaxInt32) * time.Second
 
 // Bicache implements a two-tier MFU/MRU
 // cache with sharded cache units.
@@ -45,7 +49,7 @@ type Shard struct {
 	noOverflow    bool
 }
 
-// Counters holds Bicache performance
+// counters holds Bicache performance
 // data.
 type counters struct {
 	hits      uint64
@@ -117,18 +121,19 @@ func New(c *Config) (*Bicache, error) {
 	}
 
 	// Default to 512 if unset.
-	if c.ShardCount == 0 {
-		c.ShardCount = 512
+	shardCount := c.ShardCount
+	if shardCount == 0 {
+		shardCount = 512
 	}
 
-	shards := make([]*Shard, c.ShardCount)
+	shards := make([]*Shard, shardCount)
 
 	// Get cache sizes for each shard.
-	mfuSize := int(math.Ceil(float64(c.MFUSize) / float64(c.ShardCount)))
-	mruSize := int(math.Ceil(float64(c.MRUSize) / float64(c.ShardCount)))
+	mfuSize := int(math.Ceil(float64(c.MFUSize) / float64(shardCount)))
+	mruSize := int(math.Ceil(float64(c.MRUSize) / float64(shardCount)))
 
 	// Init shards.
-	for i := 0; i < c.ShardCount; i++ {
+	for i := 0; i < shardCount; i++ {
 		shards[i] = &Shard{
 			cacheMap:      make(map[string]*entry, mfuSize+mruSize),
 			mfuCache:      sll.New(),
@@ -142,15 +147,16 @@ func New(c *Config) (*Bicache, error) {
 		}
 	}
 
-	if c.Context == nil {
-		c.Context = context.Background()
+	parent := c.Context
+	if parent == nil {
+		parent = context.Background()
 	}
-	ctx, cf := context.WithCancel(c.Context)
+	ctx, cf := context.WithCancel(parent)
 
 	cache := &Bicache{
 		shards:     shards,
-		ShardCount: uint32(c.ShardCount),
-		Size:       (mfuSize + mruSize) * c.ShardCount,
+		ShardCount: uint32(shardCount),
+		Size:       (mfuSize + mruSize) * shardCount,
 		done:       cf,
 	}
 
@@ -160,7 +166,7 @@ func New(c *Config) (*Bicache, error) {
 	if c.AutoEvict > 0 {
 		cache.autoEvict = true
 		iter := time.Duration(c.AutoEvict) * time.Millisecond
-		go bgAutoEvict(ctx, cache, iter, c)
+		go bgAutoEvict(ctx, cache, iter, c.EvictLog)
 	}
 
 	return cache, nil
@@ -177,9 +183,9 @@ func (b *Bicache) Close() {
 
 // bgAutoEvict calls evictTTL and promoteEvict for all shards
 // sequentially on the configured iter time interval.
-func bgAutoEvict(ctx context.Context, b *Bicache, iter time.Duration, c *Config) {
-	ttlTachy := tachymeter.New(&tachymeter.Config{Size: c.ShardCount})
-	promoTachy := tachymeter.New(&tachymeter.Config{Size: c.ShardCount})
+func bgAutoEvict(ctx context.Context, b *Bicache, iter time.Duration, evictLog bool) {
+	ttlTachy := tachymeter.New(&tachymeter.Config{Size: int(b.ShardCount)})
+	promoTachy := tachymeter.New(&tachymeter.Config{Size: int(b.ShardCount)})
 	interval := time.NewTicker(iter)
 	var evicted int
 	var start time.Time
@@ -196,7 +202,7 @@ func bgAutoEvict(ctx context.Context, b *Bicache, iter time.Duration, c *Config)
 			// Skip this interval if
 			// evictions are paused.
 			if atomic.LoadUint32(&b.paused) == 1 {
-				if c.EvictLog {
+				if evictLog {
 					log.Printf("[Bicache] Evictions Paused")
 				}
 				continue
@@ -223,7 +229,7 @@ func bgAutoEvict(ctx context.Context, b *Bicache, iter time.Duration, c *Config)
 					evicted = s.evictTTL()
 				}
 
-				if c.EvictLog && evicted > 0 {
+				if evictLog && evicted > 0 {
 					ttlTachy.AddTime(time.Since(start))
 				}
 
@@ -231,7 +237,7 @@ func bgAutoEvict(ctx context.Context, b *Bicache, iter time.Duration, c *Config)
 				start = time.Now()
 				s.promoteEvict()
 
-				if c.EvictLog {
+				if evictLog {
 					promoTachy.AddTime(time.Since(start))
 				}
 			}
@@ -240,7 +246,7 @@ func bgAutoEvict(ctx context.Context, b *Bicache, iter time.Duration, c *Config)
 			ttlStats = ttlTachy.Calc()
 			promoStats = promoTachy.Calc()
 
-			if c.EvictLog {
+			if evictLog {
 				// Log TTL stats if a
 				// TTL eviction was triggered.
 				if ttlStats.Count > 0 {
@@ -288,8 +294,6 @@ func (b *Bicache) Stats() *Stats {
 	// Prevent incorrect stats in MRU-only mode.
 	if mfuCap > 0 {
 		stats.MFUUsedP = uint(float64(stats.MFUSize) / mfuCap * 100)
-	} else {
-		stats.MFUUsedP = 0
 	}
 
 	return stats
@@ -304,20 +308,18 @@ func (s *Shard) evictTTL() int {
 		return 0
 	}
 
-	// Tracking marked expirations
-	// in a list.
-	expired := list.New()
+	// Marked expirations.
+	var expired []string
 
 	// Set initial nearest expire.
-	nearestExpire := time.Now().Add(time.Second * 2147483647)
+	nearestExpire := time.Now().Add(nearestExpireSentinel)
 
 	s.RLock()
 
 	now := time.Now()
 	for k, ttl := range s.ttlMap {
 		if now.After(ttl) {
-			// Add to expired.
-			_ = expired.PushBack(k)
+			expired = append(expired, k)
 		} else {
 			// If the key isn't expiring, it is
 			// eligible for the nearest expire value.
@@ -334,9 +336,7 @@ func (s *Shard) evictTTL() int {
 
 	var evicted int
 	now = time.Now()
-	for k := expired.Front(); k != nil; k = k.Next() {
-		key := k.Value.(string)
-
+	for _, key := range expired {
 		// Recheck the TTL under the write lock; a
 		// concurrent SetTTL may have extended it since
 		// the mark phase, or a Del may have removed the key.
@@ -416,120 +416,91 @@ func (s *Shard) promoteEvict() {
 	}
 
 	// Get the top n MRU elements
-	// where n = MRU capacity overflow.
-	mruToPromoteEvict := s.mruCache.HighScores(mruOverflow)
+	// where n = MRU capacity overflow,
+	// in descending score order.
+	candidates := s.mruCache.HighScores(mruOverflow)
+	sort.Sort(sort.Reverse(candidates))
 
-	// Reverse into descending order.
-	sort.Sort(sort.Reverse(mruToPromoteEvict))
-
-	// Check MFU capacity.
-	mfuFree := int(s.mfuCap) - int(s.mfuCache.Len())
-	if mfuFree < 0 {
-		mfuFree = 0
-	}
-
-	var promoted int
-
-	// canPromote is the count of mruOverflow
-	// that can fit into currently unused MFU slots.
-	// This is only likely to be met if this
-	// is a somewhat new cache.
-	var canPromote int
-	if int(mfuFree) >= mruOverflow {
-		canPromote = mruOverflow
-	} else {
-		canPromote = mfuFree
-	}
-
-	// If the MFU is already full,
-	// we can skip the next block.
-	if canPromote == 0 {
-		goto promoteByScore
-	}
-
-	// This is all MRU->MFU promotion
-	// using free slots.
-	if canPromote > 0 {
-		for _, node := range mruToPromoteEvict[:canPromote] {
-			// Don't promote keys with low scores.
-			// We can break since the mruToPromoteEvict
-			// list is in descending order.
-			if node.Score < 2 {
-				break
-			}
-			// Remove from the MRU and
-			// push to the MFU tail.
-			// Update cache state.
-			s.mruCache.Remove(node)
-			s.mfuCache.PushTailNode(node)
-			s.cacheMap[node.Value.(*cacheData).k].state = 1
-
-			promoted++
-		}
-
-		// If we were able to promote
-		// all the overflow, return.
-		if promoted == mruOverflow {
-			return
-		}
-	}
-
-promoteByScore:
-	// Get a remainder to either promote by score
-	// to the MFU or ultimately evict from the MRU.
+	// Promote as many candidates as possible
+	// into free MFU slots.
+	promoted := s.promoteToFreeSlots(candidates)
 	mruOverflow -= promoted
-	remainderPosition := promoted
-
-	// We're here on two conditions:
-	// 1) The MFU was full. We need to handle all mruToPromoteEvict (canPromote == 0).
-	// 2) We promoted some mruToPromoteEvict and have leftovers (canPromote > 0).
-
-	// Get top MRU scores and bottom MFU scores to compare.
-	bottomMFU := s.mfuCache.LowScores(mruOverflow)
-
-	// If the lowest MFU score is higher than the lowest
-	// score to promote, none of these are eligible.
-	if len(bottomMFU) == 0 || bottomMFU[0].Score >= mruToPromoteEvict[remainderPosition].Score {
-		goto evictFromMRUTail
+	if mruOverflow == 0 {
+		return
 	}
 
-	// Otherwise, scan for a replacement.
-scorePromote:
-	for _, mruNode := range mruToPromoteEvict[remainderPosition:] {
-		for i, mfuNode := range bottomMFU {
-			if mruNode.Score > mfuNode.Score {
-				// Push the evicted MFU node to the head
-				// of the MRU and update state.
-				s.mfuCache.Remove(mfuNode)
-				s.mruCache.PushHeadNode(mfuNode)
-				s.cacheMap[mfuNode.Value.(*cacheData).k].state = 0
-
-				// Promote the MRU node to the MFU and
-				// update state.
-				s.mruCache.Remove(mruNode)
-				s.mfuCache.PushTailNode(mruNode)
-				s.cacheMap[mruNode.Value.(*cacheData).k].state = 1
-
-				// Remove the replaced MFU node from the
-				// bottomMFU list so it's not attempted twice.
-				bottomMFU = append(bottomMFU[:i], bottomMFU[i+1:]...)
-				break
-			}
-			if i == len(bottomMFU)-1 {
-				break scorePromote
-			}
-		}
-
-	}
-
-evictFromMRUTail:
+	// The MFU is full; promote any remaining candidates
+	// that outscore the lowest-scored MFU keys, demoting
+	// those into the MRU.
+	s.promoteByScore(candidates[promoted:])
 
 	// Evict the remaining overflow from the MRU tail.
 	// Score-based promotions demote the replaced MFU node
 	// back into the MRU, so they don't reduce the overflow.
-	if mruOverflow > 0 {
-		s.evictFromMRUTail(mruOverflow)
+	s.evictFromMRUTail(mruOverflow)
+}
+
+// promoteToFreeSlots promotes candidate MRU nodes into
+// unused MFU slots, in order, skipping the whole batch at
+// the first low-scored candidate (candidates must be in
+// descending score order). Free slots are only likely to
+// exist in a somewhat new cache. The number of promotions
+// is returned. The shard lock must be held.
+func (s *Shard) promoteToFreeSlots(candidates sll.NodeScoreList) int {
+	mfuFree := int(s.mfuCap) - int(s.mfuCache.Len())
+	if mfuFree > len(candidates) {
+		mfuFree = len(candidates)
 	}
+
+	var promoted int
+	for i := 0; i < mfuFree; i++ {
+		// Don't promote keys with low scores.
+		if candidates[i].Score < 2 {
+			break
+		}
+
+		s.promoteToMFU(candidates[i])
+		promoted++
+	}
+
+	return promoted
+}
+
+// promoteByScore promotes candidate MRU nodes that outscore
+// the lowest-scored MFU nodes, demoting each replaced MFU
+// node to the MRU head. Candidates must be in descending
+// score order. The shard lock must be held.
+func (s *Shard) promoteByScore(candidates sll.NodeScoreList) {
+	// Bottom MFU scores in ascending order.
+	bottomMFU := s.mfuCache.LowScores(len(candidates))
+
+	// Compare the highest-scored remaining candidate against
+	// the lowest remaining MFU score; both lists are sorted,
+	// so the first ineligible pair ends the scan.
+	for i, mruNode := range candidates {
+		if i == len(bottomMFU) || mruNode.Score <= bottomMFU[i].Score {
+			break
+		}
+
+		s.demoteToMRU(bottomMFU[i])
+		s.promoteToMFU(mruNode)
+	}
+}
+
+// promoteToMFU moves an MRU-resident node to the
+// MFU tail. The shard lock must be held.
+func (s *Shard) promoteToMFU(n *sll.Node) {
+	s.mruCache.Remove(n)
+	s.mfuCache.PushTailNode(n)
+	s.cacheMap[n.Value.(*cacheData).k].state = 1
+}
+
+// demoteToMRU moves an MFU-resident node to the
+// MRU head. The shard lock must be held.
+func (s *Shard) demoteToMRU(n *sll.Node) {
+	s.mfuCache.Remove(n)
+	s.mruCache.PushHeadNode(n)
+	s.cacheMap[n.Value.(*cacheData).k].state = 0
 }
 
 // evictFromMRUTail evicts n keys from the tail

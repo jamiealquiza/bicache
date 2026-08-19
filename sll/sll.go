@@ -211,11 +211,10 @@ func insertAt(n, at *Node) {
 	n.next.prev = n
 }
 
-// pull removes a *Node from
-// its position in the *Sll, but
-// doesn't remove the node from
-// the NodeScoreList. This is used for
-// repositioning nodes.
+// pull unlinks a *Node from its position
+// in the *Sll without adjusting the list
+// length. This is used for repositioning
+// nodes.
 func pull(n *Node) {
 	// Link next/prev nodes.
 	n.next.prev, n.prev.next = n.prev, n.next
@@ -302,11 +301,7 @@ func (ll *Sll) PushTailNode(n *Node) {
 
 // Remove removes a *Node from the *Sll.
 func (ll *Sll) Remove(n *Node) {
-	// Link next/prev nodes.
-	n.next.prev, n.prev.next = n.prev, n.next
-
-	// Remove references.
-	n.next, n.prev = nil, nil
+	pull(n)
 
 	// Decrement len.
 	atomic.AddUint64(&ll.len, ^uint64(0))

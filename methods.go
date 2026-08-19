@@ -39,44 +39,20 @@ func (lr ListResults) Swap(i, j int) {
 	lr[i], lr[j] = lr[j], lr[i]
 }
 
-// Bicache is storing a [2]interface{}
-// as the underlying sll node's value.
-// Position 0 is the node's key and position
-// 1 is the value. This is done so that
-// the node a node can be looked up in the
-// cache map if the key would otherwise be
-// unknown.
-
 // Set takes a key and value and creates
-// and entry in the MRU cache. If the key
+// an entry in the MRU cache. If the key
 // already exists, the value is updated.
 func (b *Bicache) Set(k string, v interface{}) bool {
 	s := b.shards[b.getShard(k)]
 
 	s.Lock()
-	// If the entry exists, update. If not,
-	// create at the tail of the MRU cache.
-	if n, exists := s.cacheMap[k]; !exists {
-		// Return false if we're at capacity
-		// and no overflow is set.
-		if s.noOverflow && s.mruCache.Len() >= s.mruCap {
-			s.Unlock()
-			atomic.AddUint64(&s.counters.overflows, 1)
-			return false
-		}
-
-		// Create at the MRU tail.
-		s.cacheMap[k] = &entry{
-			node: s.mruCache.PushHead(&cacheData{k: k, v: v}),
-		}
-	} else {
-		n.node.Value.(*cacheData).v = v
-		if n.state == 0 {
-			s.mruCache.MoveToHead(n.node)
-		}
-	}
-
+	ok := s.set(k, v)
 	s.Unlock()
+
+	if !ok {
+		atomic.AddUint64(&s.counters.overflows, 1)
+		return false
+	}
 
 	// promoteEvict on write if it's
 	// not being handled automatically.
@@ -87,36 +63,18 @@ func (b *Bicache) Set(k string, v interface{}) bool {
 	return true
 }
 
-// SetTTL is the same as set but accepts a
+// SetTTL is the same as Set but accepts a
 // parameter t to specify a TTL in seconds.
 func (b *Bicache) SetTTL(k string, v interface{}, t int32) bool {
 	s := b.shards[b.getShard(k)]
 
 	s.Lock()
 
-	// Proceed to normal Set operation.
-	// This logic is duplicated for now
-	// to skip releasing / re-acquiring a mutex.
-
-	// If the entry exists, update. If not,
-	// create at the tail of the MRU cache.
-	if n, exists := s.cacheMap[k]; !exists {
-		// Return false if we're at capacity
-		// and no overflow is set.
-		if s.noOverflow && s.mruCache.Len() >= s.mruCap {
-			s.Unlock()
-			atomic.AddUint64(&s.counters.overflows, 1)
-			return false
-		}
-		// Create at the MRU tail.
-		s.cacheMap[k] = &entry{
-			node: s.mruCache.PushHead(&cacheData{k: k, v: v}),
-		}
-	} else {
-		n.node.Value.(*cacheData).v = v
-		if n.state == 0 {
-			s.mruCache.MoveToHead(n.node)
-		}
+	ok := s.set(k, v)
+	if !ok {
+		s.Unlock()
+		atomic.AddUint64(&s.counters.overflows, 1)
+		return false
 	}
 
 	// Set the TTL expiration; this is done only after
@@ -140,6 +98,35 @@ func (b *Bicache) SetTTL(k string, v interface{}, t int32) bool {
 	// not being handled automatically.
 	if !b.autoEvict {
 		s.promoteEvict()
+	}
+
+	return true
+}
+
+// set creates or updates a cache entry for key k. New keys
+// are created at the MRU head; existing keys have their value
+// updated (and are moved to the MRU head if MRU-resident).
+// A false is returned if the cache is full and NoOverflow is
+// set. The shard lock must be held.
+func (s *Shard) set(k string, v interface{}) bool {
+	n, exists := s.cacheMap[k]
+	if !exists {
+		// Reject if we're at capacity
+		// and no overflow is set.
+		if s.noOverflow && s.mruCache.Len() >= s.mruCap {
+			return false
+		}
+
+		s.cacheMap[k] = &entry{
+			node: s.mruCache.PushHead(&cacheData{k: k, v: v}),
+		}
+
+		return true
+	}
+
+	n.node.Value.(*cacheData).v = v
+	if n.state == 0 {
+		s.mruCache.MoveToHead(n.node)
 	}
 
 	return true
@@ -192,8 +179,8 @@ func (b *Bicache) Del(k string) {
 }
 
 // List returns all key names, states, and scores
-// sorted in descending order by score. Returns n
-// top restults.
+// sorted in descending order by score. Returns the
+// n top results.
 func (b *Bicache) List(n int) ListResults {
 	// Make a ListResults large enough to hold the
 	// number of cache items present in both cache tiers.
@@ -285,7 +272,7 @@ func (b *Bicache) FlushAll() error {
 		s.cacheMap = make(map[string]*entry, s.mfuCap+s.mruCap)
 		s.ttlMap = make(map[string]time.Time)
 		atomic.StoreUint64(&s.ttlCount, 0)
-		s.nearestExpire = time.Now().Add(time.Second * 2147483647)
+		s.nearestExpire = time.Now().Add(nearestExpireSentinel)
 
 		// Create new caches.
 		s.mfuCache = sll.New()
