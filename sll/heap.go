@@ -1,12 +1,16 @@
 package sll
 
+import (
+	"sync/atomic"
+)
+
 // MinHeap implements a min-heap heap.Interface.
 type MinHeap []*Node
 
 func (mh MinHeap) Len() int { return len(mh) }
 
 func (mh MinHeap) Less(i, j int) bool {
-	return mh[i].Score < mh[j].Score
+	return atomic.LoadUint64(&mh[i].Score) < atomic.LoadUint64(&mh[j].Score)
 }
 
 func (mh MinHeap) Swap(i, j int) {
@@ -40,7 +44,7 @@ type MaxHeap []*Node
 func (mh MaxHeap) Len() int { return len(mh) }
 
 func (mh MaxHeap) Less(i, j int) bool {
-	return mh[i].Score > mh[j].Score
+	return atomic.LoadUint64(&mh[i].Score) > atomic.LoadUint64(&mh[j].Score)
 }
 
 func (mh MaxHeap) Swap(i, j int) {

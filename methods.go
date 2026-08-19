@@ -39,44 +39,20 @@ func (lr ListResults) Swap(i, j int) {
 	lr[i], lr[j] = lr[j], lr[i]
 }
 
-// Bicache is storing a [2]interface{}
-// as the underlying sll node's value.
-// Position 0 is the node's key and position
-// 1 is the value. This is done so that
-// the node a node can be looked up in the
-// cache map if the key would otherwise be
-// unknown.
-
 // Set takes a key and value and creates
-// and entry in the MRU cache. If the key
+// an entry in the MRU cache. If the key
 // already exists, the value is updated.
 func (b *Bicache) Set(k string, v interface{}) bool {
 	s := b.shards[b.getShard(k)]
 
 	s.Lock()
-	// If the entry exists, update. If not,
-	// create at the tail of the MRU cache.
-	if n, exists := s.cacheMap[k]; !exists {
-		// Return false if we're at capacity
-		// and no overflow is set.
-		if s.noOverflow && s.mruCache.Len() >= s.mruCap {
-			s.Unlock()
-			atomic.AddUint64(&s.counters.overflows, 1)
-			return false
-		}
-
-		// Create at the MRU tail.
-		s.cacheMap[k] = &entry{
-			node: s.mruCache.PushHead(&cacheData{k: k, v: v}),
-		}
-	} else {
-		n.node.Value.(*cacheData).v = v
-		if n.state == 0 {
-			s.mruCache.MoveToHead(n.node)
-		}
-	}
-
+	ok := s.set(k, v)
 	s.Unlock()
+
+	if !ok {
+		atomic.AddUint64(&s.counters.overflows, 1)
+		return false
+	}
 
 	// promoteEvict on write if it's
 	// not being handled automatically.
@@ -87,43 +63,30 @@ func (b *Bicache) Set(k string, v interface{}) bool {
 	return true
 }
 
-// SetTTL is the same as set but accepts a
+// SetTTL is the same as Set but accepts a
 // parameter t to specify a TTL in seconds.
 func (b *Bicache) SetTTL(k string, v interface{}, t int32) bool {
 	s := b.shards[b.getShard(k)]
 
 	s.Lock()
 
-	// Set TTL expiration
+	ok := s.set(k, v)
+	if !ok {
+		s.Unlock()
+		atomic.AddUint64(&s.counters.overflows, 1)
+		return false
+	}
+
+	// Set the TTL expiration; this is done only after
+	// a successful set so that a rejected key doesn't
+	// leave an orphaned TTL entry behind. Only count
+	// keys that didn't already have a TTL; the map length
+	// comparison detects this without a second map lookup.
 	expiration := time.Now().Add(time.Second * time.Duration(t))
+	ttlStart := len(s.ttlMap)
 	s.ttlMap[k] = expiration
-
-	// Increment TTL counter.
-	atomic.AddUint64(&s.ttlCount, 1)
-
-	// Proceed to normal Set operation.
-	// This logic is duplicated for now
-	// to skip releasing / re-acquiring a mutex.
-
-	// If the entry exists, update. If not,
-	// create at the tail of the MRU cache.
-	if n, exists := s.cacheMap[k]; !exists {
-		// Return false if we're at capacity
-		// and no overflow is set.
-		if s.noOverflow && s.mruCache.Len() >= s.mruCap {
-			s.Unlock()
-			atomic.AddUint64(&s.counters.overflows, 1)
-			return false
-		}
-		// Create at the MRU tail.
-		s.cacheMap[k] = &entry{
-			node: s.mruCache.PushHead(&cacheData{k: k, v: v}),
-		}
-	} else {
-		n.node.Value.(*cacheData).v = v
-		if n.state == 0 {
-			s.mruCache.MoveToHead(n.node)
-		}
+	if len(s.ttlMap) > ttlStart {
+		atomic.AddUint64(&s.ttlCount, 1)
 	}
 
 	// Update the nearest expire.
@@ -142,6 +105,35 @@ func (b *Bicache) SetTTL(k string, v interface{}, t int32) bool {
 	return true
 }
 
+// set creates or updates a cache entry for key k. New keys
+// are created at the MRU head; existing keys have their value
+// updated (and are moved to the MRU head if MRU-resident).
+// A false is returned if the cache is full and NoOverflow is
+// set. The shard lock must be held.
+func (s *Shard) set(k string, v interface{}) bool {
+	n, exists := s.cacheMap[k]
+	if !exists {
+		// Reject if we're at capacity
+		// and no overflow is set.
+		if s.noOverflow && s.mruCache.Len() >= s.mruCap {
+			return false
+		}
+
+		e := newEntry(k, v)
+		s.cacheMap[k] = e
+		s.mruCache.PushHeadNode(&e.node)
+
+		return true
+	}
+
+	n.v = v
+	if n.state == 0 {
+		s.mruCache.MoveToHead(&n.node)
+	}
+
+	return true
+}
+
 // Get takes a key and returns the value. Every get
 // on a key increases the key score.
 func (b *Bicache) Get(k string) interface{} {
@@ -150,8 +142,8 @@ func (b *Bicache) Get(k string) interface{} {
 	s.RLock()
 
 	if n, exists := s.cacheMap[k]; exists {
-		read := n.node.Read()
-		val := read.(*cacheData).v
+		atomic.AddUint64(&n.node.Score, 1)
+		val := n.v
 
 		s.RUnlock()
 		atomic.AddUint64(&s.counters.hits, 1)
@@ -173,12 +165,15 @@ func (b *Bicache) Del(k string) {
 
 	if n, exists := s.cacheMap[k]; exists {
 		delete(s.cacheMap, k)
-		delete(s.ttlMap, k)
+		if _, hadTTL := s.ttlMap[k]; hadTTL {
+			delete(s.ttlMap, k)
+			s.decrementTTLCount(1)
+		}
 		switch n.state {
 		case 0:
-			s.mruCache.Remove(n.node)
+			s.mruCache.Remove(&n.node)
 		case 1:
-			s.mfuCache.Remove(n.node)
+			s.mfuCache.Remove(&n.node)
 		}
 	}
 
@@ -186,28 +181,32 @@ func (b *Bicache) Del(k string) {
 }
 
 // List returns all key names, states, and scores
-// sorted in descending order by score. Returns n
-// top restults.
+// sorted in descending order by score. Returns the
+// n top results.
 func (b *Bicache) List(n int) ListResults {
 	// Make a ListResults large enough to hold the
 	// number of cache items present in both cache tiers.
 	lr := make(ListResults, 0, b.Size)
 
-	var i int
 	for _, shard := range b.shards {
+		shard.RLock()
 		for k, v := range shard.cacheMap {
 			lr = append(lr, &KeyInfo{
 				Key:   k,
 				State: v.state,
-				Score: v.node.Score,
+				Score: atomic.LoadUint64(&v.node.Score),
 			})
-			i++
 		}
+		shard.RUnlock()
 	}
 
 	sort.Sort(lr)
 	// return the number
 	// of items requested.
+	if n < 0 {
+		n = 0
+	}
+
 	if n < len(lr) {
 		return lr[:n]
 	}
@@ -222,12 +221,14 @@ func (b *Bicache) FlushMRU() error {
 		s.Lock()
 
 		// Remove cacheMap entries.
+		ttlStart := len(s.ttlMap)
 		for k, v := range s.cacheMap {
 			if v.state == 0 {
 				delete(s.cacheMap, k)
 				delete(s.ttlMap, k)
 			}
 		}
+		s.decrementTTLCount(uint64(ttlStart - len(s.ttlMap)))
 
 		s.mruCache = sll.New()
 
@@ -244,12 +245,14 @@ func (b *Bicache) FlushMFU() error {
 		s.Lock()
 
 		// Remove cacheMap entries.
+		ttlStart := len(s.ttlMap)
 		for k, v := range s.cacheMap {
 			if v.state == 1 {
 				delete(s.cacheMap, k)
 				delete(s.ttlMap, k)
 			}
 		}
+		s.decrementTTLCount(uint64(ttlStart - len(s.ttlMap)))
 
 		s.mfuCache = sll.New()
 
@@ -270,7 +273,8 @@ func (b *Bicache) FlushAll() error {
 		// Reset cache and TTL maps and nearest expire.
 		s.cacheMap = make(map[string]*entry, s.mfuCap+s.mruCap)
 		s.ttlMap = make(map[string]time.Time)
-		s.nearestExpire = time.Now().Add(time.Second * 2147483647)
+		atomic.StoreUint64(&s.ttlCount, 0)
+		s.nearestExpire = time.Now().Add(nearestExpireSentinel)
 
 		// Create new caches.
 		s.mfuCache = sll.New()

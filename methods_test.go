@@ -188,6 +188,218 @@ func TestSetTTL(t *testing.T) {
 	}
 }
 
+func TestSetTTLExistingKey(t *testing.T) {
+	c, _ := bicache.New(&bicache.Config{
+		MFUSize:    10,
+		MRUSize:    30,
+		ShardCount: 2,
+		AutoEvict:  100,
+	})
+
+	// Add a TTL to an existing non-TTL'd key.
+	c.Set("key", "value")
+
+	ok := c.SetTTL("key", "value2", 1)
+	if !ok {
+		t.Error("SetTTL failed")
+	}
+
+	if c.Get("key") != "value2" {
+		t.Error("Expected updated value")
+	}
+
+	time.Sleep(1500 * time.Millisecond)
+
+	if c.Get("key") != nil {
+		t.Error("Key TTL expiration failed")
+	}
+}
+
+func TestNoOverflow(t *testing.T) {
+	// AutoEvict is unset so that promotions/evictions
+	// run synchronously on Set.
+	c, _ := bicache.New(&bicache.Config{
+		MRUSize:    2,
+		ShardCount: 1,
+		NoOverflow: true,
+	})
+
+	if !c.Set("a", 1) || !c.Set("b", 2) {
+		t.Error("Unexpected set failure below capacity")
+	}
+
+	// The cache is now full; new keys should be rejected.
+	if c.Set("c", 3) {
+		t.Error("Expected set to fail on a full cache")
+	}
+
+	if c.SetTTL("d", 4, 60) {
+		t.Error("Expected set to fail on a full cache")
+	}
+
+	// Updates of existing keys should still succeed.
+	if !c.Set("a", 10) {
+		t.Error("Expected update of existing key to succeed")
+	}
+
+	if c.Get("a") != 10 {
+		t.Error("Unexpected value after update")
+	}
+
+	stats := c.Stats()
+
+	if stats.Overflows != 2 {
+		t.Errorf("Expected 2 overflows, got %d", stats.Overflows)
+	}
+
+	if stats.MRUSize != 2 {
+		t.Errorf("Expected MRU size 2, got %d", stats.MRUSize)
+	}
+}
+
+func TestDelMFUKey(t *testing.T) {
+	c, _ := bicache.New(&bicache.Config{
+		MFUSize:    2,
+		MRUSize:    2,
+		ShardCount: 1,
+	})
+
+	c.Set("a", "value")
+	c.Set("b", "value")
+
+	// Score key "a" for promotion.
+	c.Get("a")
+	c.Get("a")
+	c.Get("a")
+
+	// Overflow the MRU to trigger a promotion
+	// of "a" into free MFU slots.
+	c.Set("c", "value")
+
+	stats := c.Stats()
+	if stats.MFUSize != 1 {
+		t.Fatalf("Expected MFU size 1, got %d", stats.MFUSize)
+	}
+
+	// Delete the MFU-resident key.
+	c.Del("a")
+
+	if c.Get("a") != nil {
+		t.Error("Delete failed")
+	}
+
+	stats = c.Stats()
+	if stats.MFUSize != 0 {
+		t.Errorf("Expected MFU size 0, got %d", stats.MFUSize)
+	}
+}
+
+func TestMRUOnlyEviction(t *testing.T) {
+	// An MFU size of 0 puts bicache
+	// in LRU-only mode.
+	c, _ := bicache.New(&bicache.Config{
+		MFUSize:    0,
+		MRUSize:    3,
+		ShardCount: 1,
+	})
+
+	// A TTL'd key that will be tail-evicted;
+	// covers TTL bookkeeping in tail evictions.
+	c.SetTTL("t0", "value", 60)
+
+	for i := 1; i <= 4; i++ {
+		c.Set(fmt.Sprintf("k%d", i), "value")
+	}
+
+	// The two oldest keys should have been evicted.
+	if c.Get("t0") != nil || c.Get("k1") != nil {
+		t.Error("Expected oldest keys to be evicted")
+	}
+
+	for i := 2; i <= 4; i++ {
+		if c.Get(fmt.Sprintf("k%d", i)) == nil {
+			t.Errorf("Unexpected miss for key k%d", i)
+		}
+	}
+
+	stats := c.Stats()
+
+	if stats.MRUSize != 3 {
+		t.Errorf("Expected MRU size 3, got %d", stats.MRUSize)
+	}
+
+	if stats.MFUUsedP != 0 {
+		t.Errorf("Expected MFU usedp 0, got %d", stats.MFUUsedP)
+	}
+
+	if stats.Evictions != 2 {
+		t.Errorf("Expected 2 evictions, got %d", stats.Evictions)
+	}
+}
+
+func TestPromoteByScore(t *testing.T) {
+	c, _ := bicache.New(&bicache.Config{
+		MFUSize:    1,
+		MRUSize:    2,
+		ShardCount: 1,
+	})
+
+	// Promote "a" into the free MFU slot.
+	c.Set("a", "value-a")
+	c.Get("a")
+	c.Get("a")
+
+	c.Set("b", "value-b")
+	c.Set("c", "value-c")
+
+	// Score "b" higher than the MFU-resident "a",
+	// then overflow the MRU; "b" should displace "a"
+	// in the full MFU, demoting "a" to the MRU.
+	for i := 0; i < 5; i++ {
+		c.Get("b")
+	}
+
+	c.Set("d", "value-d")
+
+	if c.Get("a") != "value-a" || c.Get("b") != "value-b" {
+		t.Error("Unexpected cache miss")
+	}
+
+	for _, k := range c.List(10) {
+		switch k.Key {
+		case "b":
+			if k.State != 1 {
+				t.Errorf(`Expected key "b" in MFU state, got state %d`, k.State)
+			}
+		case "a":
+			if k.State != 0 {
+				t.Errorf(`Expected key "a" in MRU state, got state %d`, k.State)
+			}
+		}
+	}
+
+	// The demoted key is pushed back into the MRU, so
+	// the MRU must still be evicted down to capacity.
+	stats := c.Stats()
+	if stats.MRUSize != 2 {
+		t.Errorf("Expected MRU size 2, got %d", stats.MRUSize)
+	}
+}
+
+func TestListNegative(t *testing.T) {
+	c, _ := bicache.New(&bicache.Config{
+		MFUSize:    10,
+		MRUSize:    30,
+		ShardCount: 2,
+	})
+
+	c.Set("key", "value")
+
+	if list := c.List(-1); len(list) != 0 {
+		t.Errorf("Expected empty list, got len %d", len(list))
+	}
+}
+
 func TestDel(t *testing.T) {
 	c, _ := bicache.New(&bicache.Config{
 		MFUSize:    10,
@@ -522,6 +734,63 @@ func TestIntegrity(t *testing.T) {
 	if c.Get("replacement") != "replacement" || c.Get("promoted") != "promoted" {
 		t.Errorf("Unexpected cache miss")
 	}
+}
+
+func TestConcurrentOps(t *testing.T) {
+	// Exercises promotions/evictions, deletes, TTLs
+	// and Lists concurrently on small caches to surface
+	// races between eviction passes and other operations.
+	c, _ := bicache.New(&bicache.Config{
+		MFUSize:    4,
+		MRUSize:    8,
+		ShardCount: 2,
+		AutoEvict:  10,
+	})
+	defer c.Close()
+
+	const numKeys = 100
+	const numOps = 2000
+
+	wg := &sync.WaitGroup{}
+	wg.Add(4)
+
+	go func() {
+		defer wg.Done()
+		for i := 0; i < numOps; i++ {
+			k := strconv.Itoa(i % numKeys)
+			if i%3 == 0 {
+				c.SetTTL(k, "value", 1)
+			} else {
+				c.Set(k, "value")
+			}
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		for i := 0; i < numOps; i++ {
+			if v := c.Get(strconv.Itoa(i % numKeys)); v != nil && v != "value" {
+				t.Errorf(`Expected value "value", got "%s"`, v)
+			}
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		for i := 0; i < numOps; i++ {
+			c.Del(strconv.Itoa(i % numKeys))
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		for i := 0; i < numOps/10; i++ {
+			c.List(10)
+			c.Stats()
+		}
+	}()
+
+	wg.Wait()
 }
 
 func TestConcurrentReadsAndWrites(t *testing.T) {
