@@ -215,7 +215,11 @@ func bgAutoEvict(ctx context.Context, b *Bicache, iter time.Duration, c *Config)
 				// This is certain to run at least once.
 				// The first and real nearest expire will be set
 				// in any SetTTL call that's made.
-				if s.nearestExpire.Before(start.Add(iter)) {
+				s.RLock()
+				nearestExpire := s.nearestExpire
+				s.RUnlock()
+
+				if nearestExpire.Before(start.Add(iter)) {
 					evicted = s.evictTTL()
 				}
 
@@ -329,17 +333,38 @@ func (s *Shard) evictTTL() int {
 	s.Lock()
 
 	var evicted int
+	now = time.Now()
 	for k := expired.Front(); k != nil; k = k.Next() {
-		if n, exists := s.cacheMap[k.Value.(string)]; exists {
-			delete(s.cacheMap, k.Value.(string))
-			delete(s.ttlMap, k.Value.(string))
+		key := k.Value.(string)
+
+		// Recheck the TTL under the write lock; a
+		// concurrent SetTTL may have extended it since
+		// the mark phase, or a Del may have removed the key.
+		ttl, hasTTL := s.ttlMap[key]
+		if !hasTTL {
+			continue
+		}
+
+		if now.Before(ttl) {
+			// The key was extended; it's now eligible
+			// for the nearest expire value instead.
+			if ttl.Before(nearestExpire) {
+				nearestExpire = ttl
+			}
+			continue
+		}
+
+		delete(s.ttlMap, key)
+		evicted++
+
+		if n, exists := s.cacheMap[key]; exists {
+			delete(s.cacheMap, key)
 			switch n.state {
 			case 0:
 				s.mruCache.Remove(n.node)
 			case 1:
 				s.mfuCache.Remove(n.node)
 			}
-			evicted++
 		}
 	}
 
@@ -356,8 +381,9 @@ func (s *Shard) evictTTL() int {
 
 	s.Unlock()
 
-	// Update eviction counters.
+	// Update the TTL and eviction counters.
 	s.decrementTTLCount(uint64(evicted))
+	atomic.AddUint64(&s.counters.evictions, uint64(evicted))
 
 	return evicted
 }
@@ -369,8 +395,15 @@ func (s *Shard) evictTTL() int {
 // to the MFU (if possible). Any remaining overflow count
 // is evicted from the tail of the MRU.
 func (s *Shard) promoteEvict() {
+	// The shard is locked for the full promotion/eviction
+	// pass; HighScores/LowScores traverse the cache lists
+	// and the nodes they return must not be concurrently
+	// removed (e.g. by a Del or TTL eviction).
+	s.Lock()
+	defer s.Unlock()
+
 	// How far over MRU capacity are we?
-	mruOverflow := int(s.mruCache.Len() - s.mruCap)
+	mruOverflow := int(s.mruCache.Len()) - int(s.mruCap)
 	if mruOverflow <= 0 {
 		return
 	}
@@ -378,10 +411,7 @@ func (s *Shard) promoteEvict() {
 	// If MFU cap is 0, shortcut to
 	// LRU-only behavior.
 	if s.mfuCap == 0 {
-		s.Lock()
 		s.evictFromMRUTail(mruOverflow)
-		s.Unlock()
-
 		return
 	}
 
@@ -389,17 +419,11 @@ func (s *Shard) promoteEvict() {
 	// where n = MRU capacity overflow.
 	mruToPromoteEvict := s.mruCache.HighScores(mruOverflow)
 
-	// HighScores is expensive.
-	// Get lock immediately after.
-	// May want to sanity check that
-	// keys weren't removed during.
-	s.Lock()
-
 	// Reverse into descending order.
 	sort.Sort(sort.Reverse(mruToPromoteEvict))
 
 	// Check MFU capacity.
-	mfuFree := int(s.mfuCap - s.mfuCache.Len())
+	mfuFree := int(s.mfuCap) - int(s.mfuCache.Len())
 	if mfuFree < 0 {
 		mfuFree = 0
 	}
@@ -446,25 +470,15 @@ func (s *Shard) promoteEvict() {
 		// If we were able to promote
 		// all the overflow, return.
 		if promoted == mruOverflow {
-			s.Unlock()
 			return
 		}
 	}
 
 promoteByScore:
-	s.Unlock()
 	// Get a remainder to either promote by score
 	// to the MFU or ultimately evict from the MRU.
 	mruOverflow -= promoted
 	remainderPosition := promoted
-
-	// Some vars are declared up here
-	// due to the goto jumps.
-
-	// Counter to track
-	// how many from the MRU keys
-	// were promoted by score.
-	var promotedByScore int
 
 	// We're here on two conditions:
 	// 1) The MFU was full. We need to handle all mruToPromoteEvict (canPromote == 0).
@@ -480,7 +494,6 @@ promoteByScore:
 	}
 
 	// Otherwise, scan for a replacement.
-	s.Lock()
 scorePromote:
 	for _, mruNode := range mruToPromoteEvict[remainderPosition:] {
 		for i, mfuNode := range bottomMFU {
@@ -497,8 +510,6 @@ scorePromote:
 				s.mfuCache.PushTailNode(mruNode)
 				s.cacheMap[mruNode.Value.(*cacheData).k].state = 1
 
-				promotedByScore++
-
 				// Remove the replaced MFU node from the
 				// bottomMFU list so it's not attempted twice.
 				bottomMFU = append(bottomMFU[:i], bottomMFU[i+1:]...)
@@ -511,44 +522,42 @@ scorePromote:
 
 	}
 
-	s.Unlock()
-
 evictFromMRUTail:
 
-	s.Lock()
-
-	// What's the overflow remainder count?
-	toEvict := mruOverflow - promotedByScore
-	// Evict this many from the MRU tail.
-	if toEvict > 0 {
-		s.evictFromMRUTail(toEvict)
+	// Evict the remaining overflow from the MRU tail.
+	// Score-based promotions demote the replaced MFU node
+	// back into the MRU, so they don't reduce the overflow.
+	if mruOverflow > 0 {
+		s.evictFromMRUTail(mruOverflow)
 	}
-
-	s.Unlock()
 }
 
 // evictFromMRUTail evicts n keys from the tail
-// of the MRU cache.
+// of the MRU cache. The shard lock must be held.
 func (s *Shard) evictFromMRUTail(n int) {
 	ttlStart := len(s.ttlMap)
 
+	var evicted int
 	for i := 0; i < n; i++ {
 		node := s.mruCache.Tail()
-		delete(s.cacheMap, node.Value.(*cacheData).k)
-		delete(s.ttlMap, node.Value.(*cacheData).k)
-		s.mruCache.RemoveTail()
+		if node == nil {
+			break
+		}
+
+		k := node.Value.(*cacheData).k
+		delete(s.cacheMap, k)
+		delete(s.ttlMap, k)
+		s.mruCache.Remove(node)
+		evicted++
 	}
 
-	// Update the ttlCount.
+	// Update the TTL and eviction counters.
 	ttlEvicted := ttlStart - len(s.ttlMap)
 	s.decrementTTLCount(uint64(ttlEvicted))
-	// Update eviction count.
-	// Excludes TTL evictions since the
-	// decrementTTLCount handles that for us.
-	atomic.AddUint64(&s.counters.evictions, uint64(n-ttlEvicted))
+	atomic.AddUint64(&s.counters.evictions, uint64(evicted))
 }
 
-// decrementTTLCount decrements the Bicache.ttlCount
+// decrementTTLCount decrements the Shard.ttlCount
 // value by n. Even though these operations are atomic,
 // this method should only be called when the shard is locked
 // for other consistency reasons.
@@ -557,13 +566,9 @@ func (s *Shard) decrementTTLCount(n uint64) {
 	// scenario where ttlCount is
 	// already 0 and we rollover to
 	// uint max.
-	if s.ttlCount-n > s.ttlCount {
+	if n > atomic.LoadUint64(&s.ttlCount) {
 		atomic.StoreUint64(&s.ttlCount, 0)
 	} else {
-		atomic.AddUint64(&s.ttlCount, ^uint64(n-1))
+		atomic.AddUint64(&s.ttlCount, ^(n - 1))
 	}
-
-	// Increment the evictions count
-	// by n, regardless.
-	atomic.AddUint64(&s.counters.evictions, n)
 }

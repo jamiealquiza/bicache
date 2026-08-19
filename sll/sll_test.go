@@ -182,6 +182,52 @@ func TestLowScores(t *testing.T) {
 	}
 }
 
+func TestHeadTailEmpty(t *testing.T) {
+	s := sll.New()
+
+	if s.Head() != nil {
+		t.Error("Expected nil head on an empty list")
+	}
+
+	if s.Tail() != nil {
+		t.Error("Expected nil tail on an empty list")
+	}
+
+	// Removals on an empty list should be no-ops.
+	s.RemoveHead()
+	s.RemoveTail()
+
+	if s.Len() != 0 {
+		t.Errorf("Expected len 0, got %d", s.Len())
+	}
+}
+
+func TestCopyEmpty(t *testing.T) {
+	s := sll.New()
+
+	c := s.Copy()
+
+	if c.Len() != 0 {
+		t.Errorf("Expected copy len 0, got %d", c.Len())
+	}
+}
+
+func TestScoresZeroK(t *testing.T) {
+	s := sll.New()
+
+	for i := 0; i < 3; i++ {
+		s.PushTail(i)
+	}
+
+	if scores := s.HighScores(0); len(scores) != 0 {
+		t.Errorf("Expected scores len 0, got %d", len(scores))
+	}
+
+	if scores := s.LowScores(-1); len(scores) != 0 {
+		t.Errorf("Expected scores len 0, got %d", len(scores))
+	}
+}
+
 func TestNodeCopy(t *testing.T) {
 	s := sll.New()
 

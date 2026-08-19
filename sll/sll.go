@@ -84,16 +84,26 @@ func (nsl NodeScoreList) Swap(i, j int) {
 
 // Len returns the count of nodes in the *Sll.
 func (ll *Sll) Len() uint {
-	return uint(ll.len)
+	return uint(atomic.LoadUint64(&ll.len))
 }
 
-// Head returns the head *Node.
+// Head returns the head *Node, or nil
+// if the *Sll is empty.
 func (ll *Sll) Head() *Node {
+	if ll.root.prev == ll.root {
+		return nil
+	}
+
 	return ll.root.prev
 }
 
-// Tail returns the head *Node.
+// Tail returns the tail *Node, or nil
+// if the *Sll is empty.
 func (ll *Sll) Tail() *Node {
+	if ll.root.next == ll.root {
+		return nil
+	}
+
 	return ll.root.next
 }
 
@@ -115,7 +125,7 @@ func (ll *Sll) Copy() *Sll {
 func (ll *Sll) HighScores(k int) NodeScoreList {
 	h := &MinHeap{}
 
-	if ll.Len() == 0 {
+	if ll.Len() == 0 || k <= 0 {
 		return NodeScoreList(*h)
 	}
 
@@ -133,16 +143,16 @@ func (ll *Sll) HighScores(k int) NodeScoreList {
 		node = node.Prev()
 	}
 
-	var min = h.Peek().(*Node).Score
+	var min = atomic.LoadUint64(&h.Peek().(*Node).Score)
 
 	// Iterate the rest of the list
 	// while maintaining the current
 	// heap len.
 	for ; node != nil; node = node.Prev() {
-		if node.Score > min {
+		if atomic.LoadUint64(&node.Score) > min {
 			heap.Push(h, node)
 			heap.Pop(h)
-			min = h.Peek().(*Node).Score
+			min = atomic.LoadUint64(&h.Peek().(*Node).Score)
 		}
 	}
 
@@ -158,7 +168,7 @@ func (ll *Sll) HighScores(k int) NodeScoreList {
 func (ll *Sll) LowScores(k int) NodeScoreList {
 	h := &MaxHeap{}
 
-	if ll.Len() == 0 {
+	if ll.Len() == 0 || k <= 0 {
 		return NodeScoreList(*h)
 	}
 
@@ -173,16 +183,16 @@ func (ll *Sll) LowScores(k int) NodeScoreList {
 		node = node.Next()
 	}
 
-	var max = h.Peek().(*Node).Score
+	var max = atomic.LoadUint64(&h.Peek().(*Node).Score)
 
 	// Iterate the rest of the list
 	// while maintaining the current
 	// heap len.
 	for ; node != nil; node = node.Next() {
-		if node.Score < max {
+		if atomic.LoadUint64(&node.Score) < max {
 			heap.Push(h, node)
 			heap.Pop(h)
-			max = h.Peek().(*Node).Score
+			max = atomic.LoadUint64(&h.Peek().(*Node).Score)
 		}
 	}
 
@@ -304,10 +314,14 @@ func (ll *Sll) Remove(n *Node) {
 
 // RemoveHead removes the current *Sll.head.
 func (ll *Sll) RemoveHead() {
-	ll.Remove(ll.root.prev)
+	if n := ll.Head(); n != nil {
+		ll.Remove(n)
+	}
 }
 
-// RemoveTail removes the current *Sll.tail.s
+// RemoveTail removes the current *Sll.tail.
 func (ll *Sll) RemoveTail() {
-	ll.Remove(ll.root.next)
+	if n := ll.Tail(); n != nil {
+		ll.Remove(n)
+	}
 }

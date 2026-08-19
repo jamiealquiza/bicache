@@ -377,6 +377,27 @@ func TestPromoteByScore(t *testing.T) {
 			}
 		}
 	}
+
+	// The demoted key is pushed back into the MRU, so
+	// the MRU must still be evicted down to capacity.
+	stats := c.Stats()
+	if stats.MRUSize != 2 {
+		t.Errorf("Expected MRU size 2, got %d", stats.MRUSize)
+	}
+}
+
+func TestListNegative(t *testing.T) {
+	c, _ := bicache.New(&bicache.Config{
+		MFUSize:    10,
+		MRUSize:    30,
+		ShardCount: 2,
+	})
+
+	c.Set("key", "value")
+
+	if list := c.List(-1); len(list) != 0 {
+		t.Errorf("Expected empty list, got len %d", len(list))
+	}
 }
 
 func TestDel(t *testing.T) {
@@ -713,6 +734,63 @@ func TestIntegrity(t *testing.T) {
 	if c.Get("replacement") != "replacement" || c.Get("promoted") != "promoted" {
 		t.Errorf("Unexpected cache miss")
 	}
+}
+
+func TestConcurrentOps(t *testing.T) {
+	// Exercises promotions/evictions, deletes, TTLs
+	// and Lists concurrently on small caches to surface
+	// races between eviction passes and other operations.
+	c, _ := bicache.New(&bicache.Config{
+		MFUSize:    4,
+		MRUSize:    8,
+		ShardCount: 2,
+		AutoEvict:  10,
+	})
+	defer c.Close()
+
+	const numKeys = 100
+	const numOps = 2000
+
+	wg := &sync.WaitGroup{}
+	wg.Add(4)
+
+	go func() {
+		defer wg.Done()
+		for i := 0; i < numOps; i++ {
+			k := strconv.Itoa(i % numKeys)
+			if i%3 == 0 {
+				c.SetTTL(k, "value", 1)
+			} else {
+				c.Set(k, "value")
+			}
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		for i := 0; i < numOps; i++ {
+			if v := c.Get(strconv.Itoa(i % numKeys)); v != nil && v != "value" {
+				t.Errorf(`Expected value "value", got "%s"`, v)
+			}
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		for i := 0; i < numOps; i++ {
+			c.Del(strconv.Itoa(i % numKeys))
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		for i := 0; i < numOps/10; i++ {
+			c.List(10)
+			c.Stats()
+		}
+	}()
+
+	wg.Wait()
 }
 
 func TestConcurrentReadsAndWrites(t *testing.T) {
