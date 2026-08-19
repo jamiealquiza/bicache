@@ -76,21 +76,26 @@ type Config struct {
 	Context    context.Context
 }
 
-// Entry is a container type for scored
-// linked list nodes. Entries are referenced
-// in the Bicache cache map and are used to
-// locate which cache a lookup should hit.
+// entry is the cache item container referenced in the
+// Bicache cache map; it embeds the scored linked list
+// node so that a key requires a single allocation. The
+// node's Value points back at the entry, allowing cache
+// list nodes (e.g. eviction candidates) to be resolved
+// to their key and state.
 type entry struct {
-	node  *sll.Node
+	node  sll.Node
+	k     string
+	v     interface{}
 	state uint8 // 0 = MRU, 1 = MFU
 }
 
-// cacheData is the data container
-// stored in the underlying sll.Node's
-// value.
-type cacheData struct {
-	k string
-	v interface{}
+// newEntry initializes an entry with its
+// self-referential node value.
+func newEntry(k string, v interface{}) *entry {
+	e := &entry{k: k, v: v}
+	e.node.Value = e
+
+	return e
 }
 
 // Stats holds Bicache
@@ -361,9 +366,9 @@ func (s *Shard) evictTTL() int {
 			delete(s.cacheMap, key)
 			switch n.state {
 			case 0:
-				s.mruCache.Remove(n.node)
+				s.mruCache.Remove(&n.node)
 			case 1:
-				s.mfuCache.Remove(n.node)
+				s.mfuCache.Remove(&n.node)
 			}
 		}
 	}
@@ -492,7 +497,7 @@ func (s *Shard) promoteByScore(candidates sll.NodeScoreList) {
 func (s *Shard) promoteToMFU(n *sll.Node) {
 	s.mruCache.Remove(n)
 	s.mfuCache.PushTailNode(n)
-	s.cacheMap[n.Value.(*cacheData).k].state = 1
+	n.Value.(*entry).state = 1
 }
 
 // demoteToMRU moves an MFU-resident node to the
@@ -500,7 +505,7 @@ func (s *Shard) promoteToMFU(n *sll.Node) {
 func (s *Shard) demoteToMRU(n *sll.Node) {
 	s.mfuCache.Remove(n)
 	s.mruCache.PushHeadNode(n)
-	s.cacheMap[n.Value.(*cacheData).k].state = 0
+	n.Value.(*entry).state = 0
 }
 
 // evictFromMRUTail evicts n keys from the tail
@@ -515,7 +520,7 @@ func (s *Shard) evictFromMRUTail(n int) {
 			break
 		}
 
-		k := node.Value.(*cacheData).k
+		k := node.Value.(*entry).k
 		delete(s.cacheMap, k)
 		delete(s.ttlMap, k)
 		s.mruCache.Remove(node)

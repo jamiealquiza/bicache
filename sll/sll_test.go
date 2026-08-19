@@ -367,9 +367,6 @@ func TestLowScoresPartial(t *testing.T) {
 }
 
 func benchmarkHeapScores(b *testing.B, l int) {
-	b.N = 1
-	b.StopTimer()
-
 	// Create/populate an sll.
 	s := sll.New()
 	for i := 0; i < l; i++ {
@@ -391,7 +388,6 @@ func benchmarkHeapScores(b *testing.B, l int) {
 	}
 
 	b.ResetTimer()
-	b.StartTimer()
 
 	for n := 0; n < b.N; n++ {
 		// Call HighScores for

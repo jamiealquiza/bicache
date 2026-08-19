@@ -80,12 +80,14 @@ func (b *Bicache) SetTTL(k string, v interface{}, t int32) bool {
 	// Set the TTL expiration; this is done only after
 	// a successful set so that a rejected key doesn't
 	// leave an orphaned TTL entry behind. Only count
-	// keys that didn't already have a TTL.
+	// keys that didn't already have a TTL; the map length
+	// comparison detects this without a second map lookup.
 	expiration := time.Now().Add(time.Second * time.Duration(t))
-	if _, hadTTL := s.ttlMap[k]; !hadTTL {
+	ttlStart := len(s.ttlMap)
+	s.ttlMap[k] = expiration
+	if len(s.ttlMap) > ttlStart {
 		atomic.AddUint64(&s.ttlCount, 1)
 	}
-	s.ttlMap[k] = expiration
 
 	// Update the nearest expire.
 	if expiration.Before(s.nearestExpire) {
@@ -117,16 +119,16 @@ func (s *Shard) set(k string, v interface{}) bool {
 			return false
 		}
 
-		s.cacheMap[k] = &entry{
-			node: s.mruCache.PushHead(&cacheData{k: k, v: v}),
-		}
+		e := newEntry(k, v)
+		s.cacheMap[k] = e
+		s.mruCache.PushHeadNode(&e.node)
 
 		return true
 	}
 
-	n.node.Value.(*cacheData).v = v
+	n.v = v
 	if n.state == 0 {
-		s.mruCache.MoveToHead(n.node)
+		s.mruCache.MoveToHead(&n.node)
 	}
 
 	return true
@@ -140,8 +142,8 @@ func (b *Bicache) Get(k string) interface{} {
 	s.RLock()
 
 	if n, exists := s.cacheMap[k]; exists {
-		read := n.node.Read()
-		val := read.(*cacheData).v
+		atomic.AddUint64(&n.node.Score, 1)
+		val := n.v
 
 		s.RUnlock()
 		atomic.AddUint64(&s.counters.hits, 1)
@@ -169,9 +171,9 @@ func (b *Bicache) Del(k string) {
 		}
 		switch n.state {
 		case 0:
-			s.mruCache.Remove(n.node)
+			s.mruCache.Remove(&n.node)
 		case 1:
-			s.mfuCache.Remove(n.node)
+			s.mfuCache.Remove(&n.node)
 		}
 	}
 
