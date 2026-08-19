@@ -182,6 +182,144 @@ func TestLowScores(t *testing.T) {
 	}
 }
 
+func TestNodeCopy(t *testing.T) {
+	s := sll.New()
+
+	node := s.PushTail("value")
+	node.Read()
+
+	c := node.Copy()
+
+	if c == node {
+		t.Error("Expected a distinct node")
+	}
+
+	if c.Value != "value" {
+		t.Errorf(`Expected value "value", got "%s"`, c.Value)
+	}
+
+	if c.Score != 1 {
+		t.Errorf("Expected score 1, got %d", c.Score)
+	}
+}
+
+func TestCopy(t *testing.T) {
+	s := sll.New()
+
+	for i := 0; i < 3; i++ {
+		s.PushTail(i)
+	}
+
+	c := s.Copy()
+
+	if c.Len() != s.Len() {
+		t.Errorf("Expected copy len %d, got %d", s.Len(), c.Len())
+	}
+
+	// Check that the copy preserves order.
+	orig, copied := s.Tail(), c.Tail()
+	for orig != nil {
+		if orig.Value != copied.Value {
+			t.Errorf(`Expected value "%d", got "%d"`, orig.Value, copied.Value)
+		}
+		orig, copied = orig.Next(), copied.Next()
+	}
+
+	// Mutating the original shouldn't affect the copy.
+	s.RemoveTail()
+	if c.Len() != 3 {
+		t.Errorf("Expected copy len 3, got %d", c.Len())
+	}
+}
+
+func TestMoveToHeadNoop(t *testing.T) {
+	s := sll.New()
+
+	s.PushTail("tail")
+	head := s.PushHead("head")
+
+	s.MoveToHead(head)
+
+	if s.Head() != head || s.Len() != 2 {
+		t.Error("Unexpected list state after no-op MoveToHead")
+	}
+}
+
+func TestMoveToTailNoop(t *testing.T) {
+	s := sll.New()
+
+	tail := s.PushTail("tail")
+	s.PushHead("head")
+
+	s.MoveToTail(tail)
+
+	if s.Tail() != tail || s.Len() != 2 {
+		t.Error("Unexpected list state after no-op MoveToTail")
+	}
+}
+
+func TestHighScoresExceedingLen(t *testing.T) {
+	s := sll.New()
+
+	for i := 0; i < 3; i++ {
+		s.PushTail(i)
+	}
+
+	scores := s.HighScores(10)
+
+	if len(scores) != 3 {
+		t.Errorf("Expected scores len 3, got %d", len(scores))
+	}
+}
+
+func TestLowScoresExceedingLen(t *testing.T) {
+	s := sll.New()
+
+	for i := 0; i < 3; i++ {
+		s.PushTail(i)
+	}
+
+	scores := s.LowScores(10)
+
+	if len(scores) != 3 {
+		t.Errorf("Expected scores len 3, got %d", len(scores))
+	}
+}
+
+func TestLowScoresPartial(t *testing.T) {
+	s := sll.New()
+
+	nodes := map[int]*sll.Node{}
+
+	for i := 0; i < 6; i++ {
+		nodes[i] = s.PushTail(i)
+	}
+
+	// Score nodes so that the lowest scores are
+	// nearest the head, forcing LowScores' tail-first
+	// traversal to displace its initial candidates.
+	for i := 2; i < 6; i++ {
+		for j := 0; j < i+3; j++ {
+			nodes[i].Read()
+		}
+	}
+	nodes[1].Read()
+
+	scores := s.LowScores(2)
+
+	if len(scores) != 2 {
+		t.Fatalf("Expected scores len 2, got %d", len(scores))
+	}
+
+	if scores[0] != nodes[0] {
+		t.Errorf("Expected scores position 0 node with value 0, got %d", scores[0].Value)
+	}
+
+	if scores[1] != nodes[1] {
+		t.Errorf("Expected scores position 1 node with value 1, got %d", scores[1].Value)
+	}
+}
+
 func benchmarkHeapScores(b *testing.B, l int) {
 	b.N = 1
 	b.StopTimer()

@@ -34,6 +34,111 @@ func TestNew(t *testing.T) {
 	}
 }
 
+func TestNewErrors(t *testing.T) {
+	// Non power of 2 shard count.
+	if _, err := bicache.New(&bicache.Config{
+		MRUSize:    30,
+		ShardCount: 3,
+	}); err == nil {
+		t.Error("Expected error for non power of 2 shard count")
+	}
+
+	// Zero MRU size.
+	if _, err := bicache.New(&bicache.Config{
+		MRUSize:    0,
+		ShardCount: 2,
+	}); err == nil {
+		t.Error("Expected error for MRU size of 0")
+	}
+}
+
+func TestNewDefaultShardCount(t *testing.T) {
+	c, err := bicache.New(&bicache.Config{
+		MRUSize: 512,
+	})
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+
+	if c.ShardCount != 512 {
+		t.Errorf("Expected default shard count 512, got %d", c.ShardCount)
+	}
+}
+
+func TestClose(t *testing.T) {
+	c, _ := bicache.New(&bicache.Config{
+		MRUSize:    30,
+		ShardCount: 2,
+		AutoEvict:  100,
+	})
+
+	for i := 0; i < 40; i++ {
+		c.Set(fmt.Sprintf("initial-%d", i), "value")
+	}
+
+	time.Sleep(500 * time.Millisecond)
+
+	stats := c.Stats()
+
+	// Check that auto evict is maintaining capacity.
+	if stats.MRUSize != 30 {
+		t.Errorf("Expected MRU size 30, got %d", stats.MRUSize)
+	}
+
+	// Close should stop the background auto evict.
+	c.Close()
+
+	for i := 0; i < 40; i++ {
+		c.Set(fmt.Sprintf("after-close-%d", i), "value")
+	}
+
+	time.Sleep(500 * time.Millisecond)
+
+	stats = c.Stats()
+
+	if stats.MRUSize != 70 {
+		t.Errorf("Expected MRU size 70 after close, got %d", stats.MRUSize)
+	}
+}
+
+func TestPauseResume(t *testing.T) {
+	c, _ := bicache.New(&bicache.Config{
+		MRUSize:    30,
+		ShardCount: 2,
+		AutoEvict:  100,
+		EvictLog:   true,
+	})
+
+	if err := c.Pause(); err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+
+	for i := 0; i < 40; i++ {
+		c.Set(strconv.Itoa(i), "value")
+	}
+
+	time.Sleep(500 * time.Millisecond)
+
+	stats := c.Stats()
+
+	// No evictions should have occurred while paused.
+	if stats.MRUSize != 40 {
+		t.Errorf("Expected MRU size 40 while paused, got %d", stats.MRUSize)
+	}
+
+	if err := c.Resume(); err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+
+	time.Sleep(500 * time.Millisecond)
+
+	stats = c.Stats()
+
+	if stats.MRUSize != 30 {
+		t.Errorf("Expected MRU size 30 after resume, got %d", stats.MRUSize)
+	}
+}
+
 func TestStats(t *testing.T) {
 	c, _ := bicache.New(&bicache.Config{
 		MFUSize:    10,
@@ -144,6 +249,7 @@ func TestEvictTtl(t *testing.T) {
 		MRUSize:    30,
 		ShardCount: 2,
 		AutoEvict:  1000,
+		EvictLog:   true,
 	})
 
 	c.SetTTL("5", "value", 5)
